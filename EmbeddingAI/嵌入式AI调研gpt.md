@@ -196,34 +196,19 @@
 1. Ultralytics, “YOLO11 边缘人工智能：在Rockchip 上高效部署”  
    https://www.ultralytics.com/zh/blog/deploy-ultralytics-yolo11-on-rockship-for-efficient-edge-ai
 
-2. 腾讯云开发者社区转载, “智简模型，边缘智能：AI 轻量化与边缘计算的最佳实践”  
-   https://cloud.tencent.com/developer/article/2474768
-
-3. 百度智能云, “深度学习推理框架TOP5解析：性能、生态与场景适配全对比”  
-   https://cloud.baidu.com/article/3571012
-
-4. CSDN, “深度学习推理框架概览（MNN/TNN/Paddle-Lite/OpenVINO/TensorRT）”  
-   https://blog.csdn.net/liuhao3285/article/details/123673663
-
-5. NVIDIA 技术博客, “使用边缘计算和视频分析检测实时废弃物污染”  
+2. NVIDIA 技术博客, “使用边缘计算和视频分析检测实时废弃物污染”  
    https://developer.nvidia.cn/blog/detecting-real-time-waste-contamination-using-edge-computing-and-video-analytics/
 
-6. Intel 中国, “英特尔® 工业人工智能白皮书 2025 年版（边缘AI驱动，助力新质生产力）下载页”  
+3. Intel 中国, “英特尔® 工业人工智能白皮书 2025 年版（边缘AI驱动，助力新质生产力）下载页”  
    https://www.intel.cn/content/www/cn/zh/internet-of-things/industrial-ai-playbook-2025.html  
    白皮书 PDF：  
    https://www.intel.cn/content/dam/www/central-libraries/cn/zh/documents/2025-02/25-ai-industrial-ai-playbook-2025-edition-white-paper.pdf
 
-7. MulticoreWare, “在机器人技术中部署基于视觉-语言-动作(VLA) 的AI 模型（面向实时边缘推理的优化）”  
+4. MulticoreWare, “在机器人技术中部署基于视觉-语言-动作(VLA) 的AI 模型（面向实时边缘推理的优化）”  
    https://multicorewareinc.com/ch/deploying-vision-language-action-vla-based-ai-models-in-robotics-optimization-for-real-time-edge-inference/
 
-8. FineBI, “怎样通过AI边缘计算实现数据安全？企业安全策略指南”  
+5. FineBI, “怎样通过AI边缘计算实现数据安全？企业安全策略指南”  
    https://www.finebi.com/blog/article/686f6d2728946ecca8c81733
-
-9. CSDN, “边缘AI应用部署与长期支持全解析”  
-   https://blog.csdn.net/c6d7e8f9g/article/details/152708472
-
-10. 知乎专栏, “超越冯·诺伊曼：迈向统一的确定性架构”  
-    https://zhuanlan.zhihu.com/p/1958203821223319198
 
 补充（报告中提及的QCS610/410来源）：  
 - Qualcomm 新闻稿（QCS610/QCS410发布）  
