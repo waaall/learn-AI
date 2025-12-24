@@ -1,6 +1,33 @@
 
 ## LLM 部署平台
 
+vllm、llama.cpp、ollama、openllm
+
+vllm是支持并发最好的，llama.cpp是支持平台最多的，ollama是最简单性能也是最差的。
+
+### [vllm](https://docs.vllm.ai/en/stable/getting_started/installation/gpu/)部署
+
+```
+┌─────────────────────────────────────────────┐
+│           vllm/vllm-openai 容器              │
+│  ┌───────────────────────────────────────┐  │
+│  │  CUDA Runtime (cuDNN, cuBLAS等)        │  │  ← 镜像自带
+│  │  PyTorch, vLLM, Python                │  │
+│  └───────────────────────────────────────┘  │
+├─────────────────────────────────────────────┤
+│        nvidia-container-toolkit             │  ← 宿主机安装
+├─────────────────────────────────────────────┤
+│           NVIDIA Driver                     │  ← 宿主机安装
+├─────────────────────────────────────────────┤
+│              GPU 硬件                        │
+└─────────────────────────────────────────────┘
+```
+
+
+- linux 需要先安装显卡驱动 和 nvidia-container-toolkit。比如ubuntu可以通过apt安装，但一般都会比较老，会有兼容性问题，去英伟达官方搜索。
+- windows需要安装nvidia驱动和wsl2(不建议在windows部署)
+
+
 
 ## 模型与显卡的性能指标
 
@@ -372,6 +399,46 @@ M4 Max 128GB可以运行在NVIDIA硬件上需要4张以上独立GPU的模型—�
 
 
 ## llm部署优化
+
+
+原则上应该是尽量单卡能运行模型，然后并发多卡独立部署再用ngi 做负载均衡
+
+
+单卡够用时的选择，不需要 tensor-parallel 的情况；如果单卡显存足够，`--tensor-parallel-size 2` 反而可能**降低性能**，因为：
+
+- 两卡之间有通信开销（NVLink/PCIe）
+- 同步等待会增加延迟
+
+想用两张卡提高并发，正确做法是**启动两个独立实例**，每个实例用一张卡：
+
+```bash
+# 实例1：使用 GPU 0，端口 8000
+CUDA_VISIBLE_DEVICES=0 vllm serve Qwen/Qwen3-8B --port 8000
+
+# 实例2：使用 GPU 1，端口 8001
+CUDA_VISIBLE_DEVICES=1 vllm serve Qwen/Qwen3-8B --port 8001
+```
+
+然后用 Nginx 做负载均衡：
+```nginx
+upstream vllm_backend {
+    server 127.0.0.1:8000;
+    server 127.0.0.1:8001;
+}
+
+server {
+    listen 80;
+    location / {
+        proxy_pass http://vllm_backend;
+    }
+}
+```
+
+|场景|推荐方案|原因|
+|---|---|---|
+|单卡放不下模型|`--tensor-parallel-size 2`|必须拆分|
+|单卡够用，想提高并发|两个独立实例 + 负载均衡|吞吐量更高，无通信开销|
+|单卡够用，想降低单次延迟|`--tensor-parallel-size 2`|可能略有提升，但不明显|
 
 ### vLLM 配置侧的关键优化点
 
