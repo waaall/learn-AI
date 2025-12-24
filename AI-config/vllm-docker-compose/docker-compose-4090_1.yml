@@ -1,0 +1,73 @@
+services:
+  vllm:
+    image: vllm/vllm-openai:v0.12.0
+    container_name: vllm-qwen3-4090-awq
+    ports:
+      - "8000:8000"
+
+    # 建议：把 AWQ 4bit 模型目录挂进来（safetensors + config.json + tokenizer 等）
+    volumes:
+      - "D:/dev_software/AI_models/huggingface/Qwen3-30B-A3B-Instruct-2507-AWQ-4bit:/models/qwen3-awq:ro"
+      # # 可选：挂 HuggingFace cache（避免容器内重复下载 tokenizer/依赖）
+      # - "D:/dev_software/AI_models/huggingface/_cache:/root/.cache/huggingface"
+
+    gpus: all
+
+    ipc: host
+    shm_size: "16gb"
+
+    command:
+      # 基础
+      - "--model"
+      - "/models/qwen3-awq"
+      - "--served-model-name"
+      - "Qwen3-30B-A3B-Instruct-2507-AWQ-4bit"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8000"
+
+      # AWQ：显式声明更稳（vLLM 也可能从 config 里自动识别）
+      - "--quantization"
+      - "awq"
+      # AWQ 通常建议用 half 精度做计算
+      - "--dtype"
+      - "half"
+
+      # 工具调用
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser"
+      - "hermes"
+
+      # RAG + 并发
+      - "--max-model-len"
+      - "8192"
+      - "--max-num-seqs"
+      - "8"
+      # 让一次迭代能吃下更多并发的 prefill（配合 chunked prefill）
+      - "--max-num-batched-tokens"
+      - "8192"
+      - "--enable-prefix-caching"
+      - "--enable-chunked-prefill"
+      - "--max-num-partial-prefills"
+      - "2"
+
+      # 显存上限(预留避免OOM)
+      - "--gpu-memory-utilization"
+      - "0.90"
+
+      # KV cache：FP8 减占用（支持 fp8_e5m2 / fp8_e4m3）
+      - "--kv-cache-dtype"
+      - "fp8_e5m2"
+      - "--calculate-kv-scales"
+
+      # 日志（可选，降低开销）
+      - "--uvicorn-log-level"
+      - "warning"
+      - "--disable-log-requests"
+
+      # # 4090单卡可能需要：CPU offload + swap(KV Cache 交换空间)
+      # - "--cpu-offload-gb"
+      # - "8"
+      # - "--swap-space"
+      # - "4"
