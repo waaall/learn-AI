@@ -3,7 +3,7 @@ services:
     image: vllm/vllm-openai:v0.12.0
     container_name: vllm-qwen3-4090_2
     ports:
-      - "8000:8000"
+      - "8123:8000"
     volumes:
       - "D:/dev_software/AI_models/huggingface/Qwen3-30B-A3B-FP8:/models/Qwen3-30B-A3B-FP8:ro"
       # # 可选：挂 HuggingFace cache（避免容器内重复下载 tokenizer/依赖）
@@ -13,7 +13,6 @@ services:
     shm_size: "24gb"
 
     command:
-      - "--model"
       - "/models/Qwen3-30B-A3B-FP8"
       - "--served-model-name"
       - "Qwen3-30B-A3B-FP8"
@@ -43,7 +42,7 @@ services:
       - "--gpu-memory-utilization"
       - "0.90"
 
-      # KV cache 用 FP8，省显存，提升并发承载
-      - "--kv-cache-dtype"
-      - "fp8_e5m2"
-      - "--calculate-kv-scales"
+      # # KV cache 用 FP8，省显存，提升并发承载, 可能有bug
+      # - "--kv-cache-dtype"
+      # - "fp8_e5m2"
+      # - "--calculate-kv-scales"
