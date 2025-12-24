@@ -134,3 +134,117 @@ DPO只需要2个模型（而非4个），训练更稳定，实现更简单，已
 - OpenAI Spinning Up in Deep RL (spinningup.openai.com)：深度强化学习入门
 - Stanford Alpaca Blog (crfm.stanford.edu/2023/03/13/alpaca.html)：Self-Instruct应用案例
 - Sutton & Barto “Reinforcement Learning: An Introduction”：RL领域经典教材
+
+
+
+# 基本概念
+
+
+## KV cache
+
+KV cache 可以把它理解成：Transformer 在推理时，为了避免每生成一个新 token 都把“历史上下文”重新算一遍注意力所需要的中间结果，把每一层注意力里的 **K（Key）和 V（Value）** 按 token 顺序缓存起来。它和“模型架构”以及“上下文长度”的关系，几乎都来自注意力机制本身。
+
+
+### **1) 它在 Transformer 里到底缓存了什么**
+
+
+以一层自注意力为例（不管是 Decoder-only 还是 Decoder 端），每个 token 会经过线性投影得到：
+
+- Q：Query（通常只需要当前步的）  
+- K：Key（要和所有历史 token 的 Q 做相似度）  
+- V：Value（用注意力权重对 V 做加权求和）  
+
+
+在自回归生成时，第 t 步生成第 t 个 token，需要用当前 token 的 Q 去“看”从 1..t 的所有 K/V。
+
+如果不缓存，每一步都得把 1..t-1 的所有 token 重新过一遍注意力投影算出 K/V，代价非常大。
+
+
+所以 KV cache 的核心就是：
+
+**历史 token 的 K/V 一旦算出来就存起来；下一步只算新 token 的 K/V，然后把它追加进缓存。**
+
+
+### **2) KV cache 和“上下文长度”的关系为什么是线性的**
+
+
+假设你当前序列总长度是 S（包含 prompt token + 已生成 token），那么每一层缓存的 K/V 张量都要为这 S 个 token 存一份。
+
+
+因此单条序列的 KV cache 大小近似：
+
+- **KV_cache_bytes ≈ S × KV_bytes_per_token**  
+
+
+这就是为什么你把 --max-model-len 从 8k 提到 16k，KV cache 需求几乎直接翻倍。
+
+
+另外并发也线性叠加：
+
+如果同时服务 N 条序列（vLLM 里常见是 --max-num-seqs 限制的并发上限），那么 KV cache 近似再乘 N（当然实际还会有分页/碎片/预留开销）。
+
+
+### **3) KV cache 和“模型架构”的关系：哪些结构决定它的大小**
+
+
+KV cache 的大小主要由注意力层的这些结构参数决定：
+
+- **层数 L（num_layers）**：每层都有自己的 KV cache，层数越多，KV cache 越大，线性增长。  
+- **每个头的维度 d（head_dim）**：维度越大，K/V 张量越大，线性增长。  
+- **KV 头数 H_kv（num_kv_heads）**：这是最关键的架构变量之一。    - 传统 MHA：H_kv = H（每个 attention head 都有独立的 K/V）        - GQA：H_kv < H（多个 Q 头共享一组 K/V，KV cache 直接按比例变小）        - MQA：H_kv = 1（所有头共享一组 K/V，KV cache 最省）        
+
+
+所以，同样参数规模的模型，如果用 GQA/MQA，KV cache 可能比纯 MHA 小很多。
+
+
+一个常用的估算公式（单序列、每 token）是：
+
+- **KV_bytes_per_token ≈ 2 × L × H_kv × d × bytes_per_element**  
+
+
+其中前面的 2 是因为要存 K 和 V 两份。
+
+
+注意：MLP/FFN 的宽度、参数量大不大，主要影响“权重显存”和算力，不直接决定 KV cache；KV cache 主要跟注意力部分的形状有关。
+
+
+### **4) KV cache 的 dtype 决定“每 token 多少 KB”**
+
+
+你看到的 “KV Cache per Token 12 kB vs 48 kB” 本质上就是 bytes_per_element 不同（以及实现细节可能不同）：
+
+- KV 用 FP16：通常每个元素 2 bytes  
+- KV 用 FP8：通常每个元素 1 byte  
+
+
+因此在结构参数不变的情况下，把 KV cache 从 FP16 改成 FP8，理论上能省一半左右（实际可能还会有对齐、scale、元数据等开销）。
+
+
+要强调一点：**权重做 4bit（AWQ/GPTQ）不等于 KV cache 也会 4bit**。权重量化主要省的是“Memory Size”，KV cache 省不省要看你 KV cache 用什么 dtype（例如你配置的 --kv-cache-dtype fp8_*）。
+
+
+### **5) 它和“推理两个阶段”的关系：prefill 和 decode**
+
+- **Prefill（处理 prompt）**：一次性把 prompt 的 S_prompt 个 token 过模型，建立起长度为 S_prompt 的 KV cache。这个阶段吞吐关键在“能否高效批处理/分块”。  
+- **Decode（逐 token 生成）**：每生成 1 个 token，只新增 1 份 K/V 并追加进 cache。此时每步注意力仍要读全部历史 KV，因此单步计算量和显存带宽压力随 S 增长。  
+
+
+这也是为什么长上下文下，生成速度会变慢，并且 KV cache 会吃掉越来越多显存。
+
+
+### **6) 放到 vLLM 里，你该怎么用这套关系来做容量预估**
+
+
+你可以用下面这个“工程上够用”的近似：
+
+- 单序列 KV ≈ KV_per_token × 实际序列长度  
+- 总 KV ≈ 单序列 KV × 并发序列数（再加一点管理开销）  
+- 总显存 ≈ 权重显存 + 总 KV + 运行时余量  
+
+
+所以：
+
+- 想要更长上下文：KV 先顶不顶得住  
+- 想要更高并发：KV 几乎一定是瓶颈（尤其是长 prompt/RAG）  
+- 想省 KV：优先考虑 --kv-cache-dtype fp8_*，其次是控制 --max-model-len、并发和请求长度分布  
+- 模型架构层面：有 GQA/MQA 的模型天生 KV 更省  
