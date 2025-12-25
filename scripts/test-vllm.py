@@ -2,6 +2,7 @@ import asyncio
 import time
 import json
 import logging
+import os
 from dataclasses import dataclass, asdict
 from openai import AsyncOpenAI
 import numpy as np
@@ -20,53 +21,29 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ShareGPT风格的真实对话数据集
-SHAREGPT_SAMPLES = [
-    {
-        "conversations": [
-            {"role": "user", "content": "Can you explain what machine learning is in simple terms?"},
-            {"role": "assistant", "content": "Machine learning is a branch of artificial intelligence where computers learn from data without being explicitly programmed..."}
-        ]
-    },
-    {
-        "conversations": [
-            {"role": "user", "content": "Write a Python function to calculate the Fibonacci sequence up to n terms."},
-            {"role": "assistant", "content": "Here's a Python function that calculates the Fibonacci sequence..."}
-        ]
-    },
-    {
-        "conversations": [
-            {"role": "user", "content": "What are the main differences between SQL and NoSQL databases? When would you use each?"},
-            {"role": "assistant", "content": "SQL and NoSQL databases differ in several key ways..."}
-        ]
-    },
-    {
-        "conversations": [
-            {"role": "user", "content": "I'm planning a trip to Japan. Can you suggest a 7-day itinerary covering Tokyo and Kyoto?"},
-            {"role": "assistant", "content": "Here's a wonderful 7-day itinerary for Japan..."}
-        ]
-    },
-    {
-        "conversations": [
-            {"role": "user", "content": "Explain the concept of blockchain technology and its potential applications beyond cryptocurrency."},
-            {"role": "assistant", "content": "Blockchain is a distributed ledger technology..."}
-        ]
-    },
-]
+# 默认数据集路径
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_DATASET = os.path.join(SCRIPT_DIR, "tomb_evolved_20k.json")
+
 
 def load_sharegpt_data(file_path: Optional[str] = None) -> list[dict]:
-    """加载ShareGPT数据集，如果没有文件则使用内置样本"""
-    if file_path:
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                logger.info(f"从 {file_path} 加载了 {len(data)} 条对话")
-                return data
-        except Exception as e:
-            logger.warning(f"无法加载文件 {file_path}: {e}，使用内置样本")
+    """加载ShareGPT数据集"""
+    # 如果没有指定路径，使用默认路径
+    if file_path is None:
+        file_path = DEFAULT_DATASET
 
-    logger.info(f"使用内置 {len(SHAREGPT_SAMPLES)} 条对话样本")
-    return SHAREGPT_SAMPLES
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            logger.info(f"从 {file_path} 加载了 {len(data)} 条对话")
+            return data
+    except FileNotFoundError:
+        logger.error(f"数据集文件未找到: {file_path}")
+        raise
+    except Exception as e:
+        logger.error(f"加载数据集失败: {e}")
+        raise
+
 
 @dataclass
 class BenchmarkResult:
@@ -80,8 +57,10 @@ class BenchmarkResult:
     p99_latency: float
     ttft_avg: float  # Time to First Token
     success_rate: float
-    
-client = AsyncOpenAI(base_url="http://localhost:8000/v1", api_key="dummy")
+
+
+client = AsyncOpenAI(base_url="http://192.168.50.50:8123/v1", api_key="dummy")
+
 
 async def single_request(
     model: str,
@@ -128,6 +107,7 @@ async def single_request(
             "error_type": type(e).__name__,
             "request_id": request_id,
         }
+
 
 async def run_concurrent_requests(
     model: str,
@@ -183,6 +163,7 @@ async def run_concurrent_requests(
     logger.info(f"测试完成: 成功率={result.success_rate*100:.1f}%, 吞吐量={result.throughput_tokens_per_sec:.1f} tok/s")
     return result
 
+
 def generate_prompts_from_sharegpt(
     sharegpt_data: list[dict],
     target_length: int,
@@ -194,7 +175,16 @@ def generate_prompts_from_sharegpt(
     for _ in range(count):
         # 随机选择一个对话
         conversation = random.choice(sharegpt_data)
-        user_msg = conversation["conversations"][0]["content"]
+
+        # 提取human的消息 (tomb_evolved_20k.json使用 "from": "human", "value": "...")
+        first_message = conversation["conversations"][0]
+        if "value" in first_message:
+            user_msg = first_message["value"]
+        elif "content" in first_message:
+            user_msg = first_message["content"]
+        else:
+            logger.warning(f"未知的消息格式: {first_message.keys()}")
+            continue
 
         # 根据目标长度调整prompt
         current_len = len(user_msg)
@@ -210,6 +200,7 @@ def generate_prompts_from_sharegpt(
         prompts.append(prompt)
 
     return prompts
+
 
 async def warmup(model: str, num_warmup: int = 5):
     """预热阶段，发送几个请求让模型加载"""
@@ -229,6 +220,7 @@ async def warmup(model: str, num_warmup: int = 5):
             logger.warning(f"预热请求 {i+1}/{num_warmup} 失败: {result.get('error', 'Unknown')}")
 
     logger.info("预热阶段完成\n")
+
 
 async def full_benchmark(
     model: str,
@@ -267,9 +259,10 @@ async def full_benchmark(
 
     return results
 
+
 # 运行测试
 async def main(
-    model: str = "your-model-name",
+    model: str = "Qwen3-30B-A3B-Instruct-2507-AWQ-4bit",
     sharegpt_file: Optional[str] = None,
     enable_warmup: bool = True,
 ):
@@ -308,15 +301,15 @@ async def main(
     logger.info("="*60)
     for r in results:
         logger.info(f"并发={r.concurrency}, 上下文={r.context_length}: "
-                   f"吞吐量={r.throughput_tokens_per_sec:.1f} tok/s, "
-                   f"成功率={r.success_rate*100:.1f}%")
+                    f"吞吐量={r.throughput_tokens_per_sec:.1f} tok/s, "
+                    f"成功率={r.success_rate*100:.1f}%")
 
     return results
 
 if __name__ == "__main__":
     # 可以通过修改这里的参数来自定义测试
     results = asyncio.run(main(
-        model="your-model-name",  # 修改为实际模型名称
+        model="Qwen3-30B-A3B-Instruct-2507-AWQ-4bit",  # 修改为实际模型名称
         sharegpt_file=None,  # 可选：指定ShareGPT JSON文件路径
         enable_warmup=True,
     ))
