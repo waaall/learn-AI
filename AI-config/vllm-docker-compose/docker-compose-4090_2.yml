@@ -20,6 +20,8 @@ services:
       - "0.0.0.0"
       - "--port"
       - "8000"
+      - "--override-generation-config"
+      - '{"temperature":0.2,"top_p":0.9}'
 
       # 两卡张量并行
       - "--tensor-parallel-size"
