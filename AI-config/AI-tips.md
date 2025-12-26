@@ -335,5 +335,17 @@ Plugin 是 **一个可安装/分享的扩展包**，里面可以打包很多东�
 - 放进自建的 plugin marketplace，团队新人只要执行一行命令就能装上。
     
 
-### MCP
+## MCP
 
+有一些常用的 mcp server
+### context 7
+
+```bash
+brew install node
+npm i -g @upstash/context7-mcp
+
+codex mcp add context7 -- context7-mcp
+claude mcp add --transport stdio context7 -- context7-mcp
+
+# 使用 context7 mcp 查询 ** 最新文档, 写 **
+```

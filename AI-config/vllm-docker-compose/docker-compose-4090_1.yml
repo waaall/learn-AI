@@ -4,18 +4,15 @@ services:
     container_name: vllm-qwen3-4090-awq
     ports:
       - "8123:8000"
-
-    # 建议：把 AWQ 4bit 模型目录挂进来（safetensors + config.json + tokenizer 等）
     volumes:
       - "D:/dev_software/AI_models/huggingface/Qwen3-30B-A3B-AWQ-4bit:/models/qwen3-awq:ro"
       # # 可选：挂 HuggingFace cache（避免容器内重复下载 tokenizer/依赖）
       # - "D:/dev_software/AI_models/huggingface/_cache:/root/.cache/huggingface"
-
     gpus: all
-
     ipc: host
     shm_size: "16gb"
-
+    environment:
+      - TZ=Asia/Shanghai
     command:
       # 基础
       - "/models/qwen3-awq"
@@ -48,18 +45,17 @@ services:
       - "--gpu-memory-utilization"
       - "0.90"
 
-      # # KV cache：FP8 减占用（支持 fp8_e5m2 / fp8_e4m3）可能有bug
-      # - "--kv-cache-dtype"
-      # - "fp8_e5m2"
-      # - "--calculate-kv-scales"
-
       # # 日志（可选，降低开销）
       # - "--uvicorn-log-level"
       # - "warning"
       # - "--disable-log-requests"
+    networks:
+      llm-net:
+        aliases: #  http://vllm:8000 可以容器网络内访问
+          - vllm
 
-      # # 4090单卡可能需要：CPU offload + swap(KV Cache 交换空间)
-      # - "--cpu-offload-gb"
-      # - "8"
-      # - "--swap-space"
-      # - "4"
+# external 需要 docker network create llm-net; 或者一起编排
+networks:
+  llm-net:
+    external: true
+    name: llm-net

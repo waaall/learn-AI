@@ -11,8 +11,8 @@ services:
     gpus: all
     ipc: host
     shm_size: "32gb"
-
     environment:
+      - TZ=Asia/Shanghai
       VLLM_USE_FLASHINFER_MOE_FP8: "1"
       VLLM_FLASHINFER_MOE_BACKEND: "latency"
       VLLM_USE_DEEP_GEMM: "0"
@@ -51,3 +51,13 @@ services:
       # - "--kv-cache-dtype"
       # - "fp8_e5m2"
       # - "--calculate-kv-scales"
+    networks:
+      llm-net:
+        aliases: #  http://vllm:8000 可以容器网络内访问
+          - vllm
+
+# external 需要 docker network create llm-net; 或者一起编排
+networks:
+  llm-net:
+    external: true
+    name: llm-net

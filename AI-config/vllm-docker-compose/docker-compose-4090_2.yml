@@ -11,7 +11,8 @@ services:
     gpus: "device=0,1"
     ipc: host
     shm_size: "24gb"
-
+    environment:
+      - TZ=Asia/Shanghai
     command:
       - "/models/Qwen3-30B-A3B-FP8"
       - "--served-model-name"
@@ -44,7 +45,13 @@ services:
       - "--gpu-memory-utilization"
       - "0.90"
 
-      # # KV cache 用 FP8，省显存，提升并发承载, 可能有bug
-      # - "--kv-cache-dtype"
-      # - "fp8_e5m2"
-      # - "--calculate-kv-scales"
+    networks:
+      llm-net:
+        aliases: #  http://vllm:8000 可以容器网络内访问
+          - vllm
+
+# external 需要 docker network create llm-net; 或者一起编排
+networks:
+  llm-net:
+    external: true
+    name: llm-net
