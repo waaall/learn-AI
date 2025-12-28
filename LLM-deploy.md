@@ -371,6 +371,8 @@ docker compose -f docker-compose.bench.yaml down
 ## LLM部署性能对比分析
 
 
+- [benchmarking_llm_inference_on_rtx_4090/5090/6000](https://www.reddit.com/r/LocalLLaMA/comments/1o387tc/benchmarking_llm_inference_on_rtx_4090_rtx_5090/)
+
 随着Blackwell架构GPU和改进的MoE架构的出现，运行70-120B参数模型的硬件格局发生了重大变化，但**关键的NVLink缺失限制了多GPU扩展能力**。RTX PRO 6000的96GB显存支持70B模型单卡部署，而双RTX 5090配置在Llama 3.3-70B上实现了**27 tokens/秒**，但由于缺少NVLink存在已记录的P2P通信问题。Apple M4 Max凭借统一内存优势在70B Q4模型上达到**10-12 tok/s**，而华为Atlas 300I Duo虽提供96GB容量，但**每芯片204 GB/s带宽 & tops性能不足**——不到NVIDIA最新产品的五分之一。
 
 -----

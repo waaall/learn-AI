@@ -252,6 +252,8 @@ KV cache 的大小主要由注意力层的这些结构参数决定：
 
 ### KV cache 优化
 
+- 具体适配性调研见《learn-LLM.assets/FP8-KV-Cache量化研究.md》
+
 问题：
 
 https://huggingface.co/cyankiwi/Qwen3-30B-A3B-Instruct-2507-AWQ-4bit  这是原文链接，这个kv cache 写着3GB（200k）这个是啥意思？KV cache会随着模型量化线性降低吗？
