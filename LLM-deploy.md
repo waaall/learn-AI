@@ -1,11 +1,11 @@
 
-## LLM 部署平台
+# LLM 部署平台
 
 vllm、llama.cpp、ollama、openllm
 
 vllm是支持并发最好的，llama.cpp是支持平台最多的，ollama是最简单性能也是最差的。
 
-### [vllm](https://docs.vllm.ai/en/stable/getting_started/installation/gpu/)部署
+## [vllm](https://docs.vllm.ai/en/stable/getting_started/installation/gpu/)部署
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -26,6 +26,325 @@ vllm是支持并发最好的，llama.cpp是支持平台最多的，ollama是最�
 
 - linux 需要先安装显卡驱动 和 nvidia-container-toolkit。比如ubuntu可以通过apt安装，但一般都会比较老，会有兼容性问题，去英伟达官方搜索。
 - windows需要安装nvidia驱动和wsl2(不建议在windows部署)
+
+### 查看vllm模型参数/状态/性能
+
+
+#### 1. 查看 vLLM 运行时参数
+
+##### 方法一：API 端点查询
+
+vLLM 提供了多个 API 端点可以查看运行时信息：
+
+```bash
+# 基本模型信息
+curl http://localhost:8123/v1/models | jq
+
+# 详细配置信息（vLLM 特有）
+curl http://localhost:8123/v1/model_info | jq
+
+# 服务器健康检查
+curl http://localhost:8123/health
+```
+
+##### 方法二：进入容器查看日志
+
+```bash
+# 查看启动日志（包含详细配置）
+docker logs vllm-qwen3-4090-awq
+
+# 实时跟踪日志
+docker logs -f vllm-qwen3-4090-awq
+```
+
+启动日志会显示类似这样的关键信息：
+
+```
+INFO: Model config: ...
+INFO: KV cache data type: auto
+INFO: GPU memory utilization: 0.90
+INFO: Maximum number of batched tokens: 8192
+INFO: Number of GPU blocks: XXXX
+INFO: Number of CPU blocks: XXXX
+```
+
+##### 方法三：Python 脚本查询详细信息
+
+```python
+import requests
+import json
+
+BASE_URL = "http://localhost:8123"
+
+def get_model_info():
+    """获取模型基本信息"""
+    resp = requests.get(f"{BASE_URL}/v1/models")
+    print("=== 模型列表 ===")
+    print(json.dumps(resp.json(), indent=2, ensure_ascii=False))
+
+def get_detailed_info():
+    """获取详细配置（vLLM 特有端点）"""
+    endpoints = [
+        "/v1/model_info",
+        "/metrics",  # Prometheus 格式的指标
+    ]
+    
+    for ep in endpoints:
+        try:
+            resp = requests.get(f"{BASE_URL}{ep}")
+            print(f"\n=== {ep} ===")
+            if "json" in resp.headers.get("content-type", ""):
+                print(json.dumps(resp.json(), indent=2, ensure_ascii=False))
+            else:
+                # metrics 是文本格式
+                print(resp.text[:2000])  # 截断显示
+        except Exception as e:
+            print(f"{ep}: {e}")
+
+def get_metrics_parsed():
+    """解析 Prometheus 指标中的 KV Cache 信息"""
+    resp = requests.get(f"{BASE_URL}/metrics")
+    lines = resp.text.split('\n')
+    
+    print("\n=== KV Cache 相关指标 ===")
+    kv_keywords = ['kv_cache', 'gpu_cache', 'cache_block', 'prefix_cache']
+    for line in lines:
+        if any(kw in line.lower() for kw in kv_keywords):
+            print(line)
+    
+    print("\n=== GPU 内存相关 ===")
+    mem_keywords = ['gpu_memory', 'memory_usage']
+    for line in lines:
+        if any(kw in line.lower() for kw in mem_keywords):
+            print(line)
+
+if __name__ == "__main__":
+    get_model_info()
+    get_detailed_info()
+    get_metrics_parsed()
+```
+
+##### 方法四：进入容器执行诊断
+
+```bash
+# 进入容器
+docker exec -it vllm-qwen3-4090-awq bash
+
+# 在容器内查看 GPU 状态
+nvidia-smi
+
+# 查看 Python 环境中的 vLLM 配置
+python -c "import vllm; print(vllm.__version__)"
+```
+
+---
+
+#### 2. vLLM Benchmark 测试
+
+##### vllm bench 的部署方式
+
+**两种方式都可以**：
+
+- **本地 Python**：直接 pip install vllm 后使用
+- **Docker 内执行**：进入已有容器或启动新容器
+
+##### 方式一：本地 Python 安装（推荐用于 benchmark）
+
+```bash
+# 创建虚拟环境
+conda create -n vllm-bench python=3.11 -y
+conda activate vllm-bench
+
+# 安装 vllm（与你的 Docker 版本一致）
+pip install vllm==0.12.0
+```
+
+##### 方式二：在 Docker 容器内执行
+
+```bash
+# 进入正在运行的容器
+docker exec -it vllm-qwen3-4090-awq bash
+
+# 或者启动新容器专门做 benchmark
+docker run --rm -it --gpus all \
+    -v "D:/dev_software/AI_models/huggingface/Qwen3-30B-A3B-AWQ-4bit:/models/qwen3-awq:ro" \
+    vllm/vllm-openai:v0.12.0 \
+    bash
+```
+
+---
+
+#### 3. Benchmark 命令详解
+
+##### 3.1 离线 Throughput 测试（不需要服务运行）
+
+```bash
+# 在容器内或本地 Python 环境执行
+vllm bench throughput \
+    --model /models/qwen3-awq \
+    --input-len 512 \
+    --output-len 128 \
+    --num-prompts 100 \
+    --max-model-len 8192 \
+    --gpu-memory-utilization 0.90 \
+    --quantization awq
+```
+
+##### 3.2 在线延迟测试（需要服务运行）
+
+先确保你的 Docker 服务已启动，然后：
+
+```bash
+# 测试延迟
+vllm bench latency \
+    --model Qwen3-30B-A3B-Instruct-2507-AWQ-4bit \
+    --base-url http://localhost:8123 \
+    --input-len 512 \
+    --output-len 128 \
+    --num-prompts 50
+```
+
+---
+
+#### 4. 查看详细 KV Cache 配置的方法
+
+##### 方法一：启动时添加详细日志
+
+修改你的 docker-compose.yaml，添加日志参数：
+
+```yaml
+command:
+  # ... 其他参数 ...
+  - "--log-level"
+  - "debug"
+  # 或者使用
+  # - "-v"  # verbose 模式
+```
+
+##### 方法二：查看 /metrics 端点
+
+```bash
+# 获取所有指标
+curl http://localhost:8123/metrics | grep -E "(cache|block|memory)"
+```
+
+关键指标解释：
+
+|指标|含义|
+|---|---|
+|`vllm:num_gpu_blocks_total`|GPU 上 KV Cache 总块数|
+|`vllm:num_cpu_blocks_total`|CPU 上 KV Cache 总块数|
+|`vllm:gpu_cache_usage_perc`|GPU Cache 使用率|
+|`vllm:prefix_cache_hit_rate`|Prefix Cache 命中率|
+|`vllm:num_preemption_total`|抢占次数（KV Cache 不足时发生）|
+
+##### 方法三：使用 vLLM 内部 API（需要修改启动方式）
+
+如果你想获取更详细的配置，可以用 Python 直接加载模型查看：
+
+```python
+"""
+离线查看模型配置（不启动服务）
+"""
+from vllm import LLM
+from vllm.config import CacheConfig
+
+# 只初始化，不加载权重（快速查看配置）
+llm = LLM(
+    model="/models/qwen3-awq",  # 本地路径
+    max_model_len=8192,
+    gpu_memory_utilization=0.90,
+    quantization="awq",
+    # 仅用于查看配置，实际推理时去掉
+    enforce_eager=True,
+)
+
+# 查看配置
+print("=== Model Config ===")
+print(f"Hidden size: {llm.llm_engine.model_config.hf_config.hidden_size}")
+print(f"Num layers: {llm.llm_engine.model_config.hf_config.num_hidden_layers}")
+print(f"Num KV heads: {llm.llm_engine.model_config.hf_config.num_key_value_heads}")
+print(f"Head dim: {llm.llm_engine.model_config.hf_config.hidden_size // llm.llm_engine.model_config.hf_config.num_attention_heads}")
+
+print("\n=== Cache Config ===")
+cache_config = llm.llm_engine.cache_config
+print(f"Block size: {cache_config.block_size}")
+print(f"Num GPU blocks: {cache_config.num_gpu_blocks}")
+print(f"Num CPU blocks: {cache_config.num_cpu_blocks}")
+print(f"Cache dtype: {cache_config.cache_dtype}")
+
+print("\n=== Scheduler Config ===")
+scheduler_config = llm.llm_engine.scheduler_config
+print(f"Max num seqs: {scheduler_config.max_num_seqs}")
+print(f"Max num batched tokens: {scheduler_config.max_num_batched_tokens}")
+
+# 计算 KV Cache 大小
+num_layers = llm.llm_engine.model_config.hf_config.num_hidden_layers
+num_kv_heads = llm.llm_engine.model_config.hf_config.num_key_value_heads
+head_dim = llm.llm_engine.model_config.hf_config.hidden_size // llm.llm_engine.model_config.hf_config.num_attention_heads
+dtype_bytes = 2  # FP16/BF16 = 2 bytes
+
+kv_cache_per_token = 2 * num_layers * num_kv_heads * head_dim * dtype_bytes
+print(f"\n=== KV Cache 计算 ===")
+print(f"KV Cache per token: {kv_cache_per_token / 1024:.2f} KB")
+print(f"KV Cache for 8192 tokens: {kv_cache_per_token * 8192 / 1024 / 1024 / 1024:.2f} GB")
+```
+
+---
+
+#### 5. 完整 Benchmark Docker Compose（独立测试容器）
+
+如果你想有一个专门用于 benchmark 的配置：
+
+```yaml
+# docker-compose.bench.yaml
+services:
+  vllm-bench:
+    image: vllm/vllm-openai:v0.12.0
+    container_name: vllm-bench
+    volumes:
+      - "D:/dev_software/AI_models/huggingface/Qwen3-30B-A3B-AWQ-4bit:/models/qwen3-awq:ro"
+    gpus: all
+    ipc: host
+    shm_size: "16gb"
+    entrypoint: ["bash"]
+    stdin_open: true
+    tty: true
+```
+
+使用：
+
+```bash
+# 启动 benchmark 容器
+docker compose -f docker-compose.bench.yaml up -d
+
+# 进入容器
+docker exec -it vllm-bench bash
+
+# 在容器内运行 benchmark
+vllm bench throughput \
+    --model /models/qwen3-awq \
+    --input-len 512 \
+    --output-len 256 \
+    --num-prompts 50 \
+    --max-model-len 8192 \
+    --gpu-memory-utilization 0.90
+
+# 退出后清理
+docker compose -f docker-compose.bench.yaml down
+```
+
+---
+
+#### 总结
+
+| 需求          | 推荐方法                                 |
+| ----------- | ------------------------------------ |
+| 快速查看运行参数    | `docker logs`+`/metrics`端点        |
+| KV Cache 监控 | `/metrics`端点 + Python 脚本            |
+| 吞吐量测试       | `vllm bench throughput`（Docker 内或本地） |
+| 延迟测试        | `vllm bench latency`或 Python 脚本     |
+| 详细配置查看      | Python 直接加载 LLM 对象                   |
 
 
 
