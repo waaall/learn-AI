@@ -469,3 +469,20 @@ _表1：主流大模型量化算法特性对比。（推理加速给出的倍率
 
 参考文献：本文内容引用了相关算法的论文和官方报告，包括Frantar等人的GPTQ工作 、林Ji等人的AWQ论文 、肖Guangxuan等人的SmoothQuant论文 、Frantar等人的SparseGPT论文 、Intel发布的AutoRound博客和论文 、Dettmers等人的QLoRA论文 、Egiazarian等人的AQLM论文 、以及OpenVINO团队的技术更新博客对于OMQ等方法的综述 等。这些权威资料佐证了本文对各算法原理及性能的描述。
 
+
+
+# 学习工具
+
+
+## 模型可视化
+
+- [transformer-explainer](https://github.com/poloclub/transformer-explainer)
+- [bertviz-Visualize Attention in NLP Models](https://github.com/jessevig/bertviz)
+- 
+
+```bash
+git clone https://github.com/poloclub/transformer-explainer.git
+cd transformer-explainer
+npm install
+npm run dev
+```
