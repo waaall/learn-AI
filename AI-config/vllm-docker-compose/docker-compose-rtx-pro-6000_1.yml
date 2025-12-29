@@ -13,11 +13,11 @@ services:
     shm_size: "32gb"
     environment:
       - TZ=Asia/Shanghai
-      VLLM_USE_FLASHINFER_MOE_FP8: "1"
-      VLLM_FLASHINFER_MOE_BACKEND: "latency"
-      VLLM_USE_DEEP_GEMM: "0"
-      VLLM_USE_TRTLLM_ATTENTION: "0"
-      VLLM_ATTENTION_BACKEND: "FLASH_ATTN"
+      - VLLM_USE_FLASHINFER_MOE_FP8=1
+      - VLLM_FLASHINFER_MOE_BACKEND=latency
+      - VLLM_USE_DEEP_GEMM=0
+      - VLLM_USE_TRTLLM_ATTENTION=0
+      - VLLM_ATTENTION_BACKEND=FLASH_ATTN
 
     command:
       - "/models/Qwen3-Next-80B-A3B-Instruct-FP8"
@@ -37,19 +37,20 @@ services:
 
       # 上下文 + 并发设置
       - "--max-model-len"
-      - "8192"
+      - "16384"
       - "--max-num-seqs"
       - "8"
       - "--max-num-batched-tokens"
-      - "16384"
+      - "65536"
       - "--gpu-memory-utilization"
-      - "0.90"
+      - "0.95"
       - "--enable-prefix-caching"
       - "--enable-chunked-prefill"
 
-      # # KV cache 用 FP8，省显存，提升并发承载, 可能有bug
+      # # KV cache 用 FP8，省显存，提升并发承载
+      # # 可能有bug(模型不支持校准精度会有问题)
       # - "--kv-cache-dtype"
-      # - "fp8_e5m2"
+      # - "fp8"
       # - "--calculate-kv-scales"
     networks:
       llm-net:

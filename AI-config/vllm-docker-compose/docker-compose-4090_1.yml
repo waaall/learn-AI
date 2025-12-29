@@ -32,12 +32,12 @@ services:
 
       # RAG + 并发
       - "--max-model-len"
-      - "8192"
+      - "12288"
       - "--max-num-seqs"
-      - "8"
+      - "4"
       # 让一次迭代能吃下更多并发的 prefill（配合 chunked prefill）
       - "--max-num-batched-tokens"
-      - "8192"
+      - "36864"
       - "--enable-prefix-caching"
       - "--enable-chunked-prefill"
 

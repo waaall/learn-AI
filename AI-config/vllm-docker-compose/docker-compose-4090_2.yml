@@ -35,11 +35,11 @@ services:
 
       # 并发/吞吐给更宽松的上限
       - "--max-model-len"
-      - "8192"
-      - "--max-num-seqs"
-      - "12"
-      - "--max-num-batched-tokens"
       - "16384"
+      - "--max-num-seqs"
+      - "8"
+      - "--max-num-batched-tokens"
+      - "65536"
       - "--enable-prefix-caching"
       - "--enable-chunked-prefill"
       - "--gpu-memory-utilization"
