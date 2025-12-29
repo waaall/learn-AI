@@ -1,4 +1,11 @@
 
+# 系统提示词(System Prompts)
+
+- [system-prompts-of-ai-tools](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools/tree/main)
+
+上文链接的github仓库是有人逆向出来的各种模型的系统提示词，无论真假，都有相当的参考意义。其实根本的原则还是表述清晰。
+
+
 # claude code & codex
 
 
