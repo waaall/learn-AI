@@ -490,6 +490,32 @@ python 版本和docker版本是相互独立的，但都依赖上述安装的系�
 docker pull quay.io/ascend/vllm-ascend:v0.11.0rc1-310p
 ```
 
+检查docker内部信息：
+
+```bash
+IMAGE=quay.io/ascend/vllm-ascend:v0.11.0rc1-310p
+
+docker run --rm ${IMAGE} bash -lc '
+set -e
+ARCH=$(uname -m)
+FILE=/usr/local/Ascend/ascend-toolkit/latest/${ARCH}-linux/ascend_toolkit_install.info
+if [ -f "$FILE" ]; then
+  echo "==> $FILE"
+  grep -E "^(package_name|version|innerversion|path)=" "$FILE"
+else
+  echo "not found: $FILE"
+  echo "try list:"
+  ls -la /usr/local/Ascend/ascend-toolkit/latest/ || true
+  find /usr/local/Ascend/ascend-toolkit/latest -maxdepth 2 -name ascend_toolkit_install.info -print -exec sh -c "echo ==== {}; grep -E \"^(package_name|version|innerversion|path)=\" {}" \; || true
+fi
+'
+```
+
+package_name=Ascend-cann-toolkit
+version=8.3.RC1
+innerversion=V100R001C23SPC001B235
+path=/usr/local/Ascend/ascend-toolkit/8.3.RC1/aarch64-linux
+
 #### python 部署(与docker部署替代关系)
 
 
