@@ -5,7 +5,7 @@ vllm、llama.cpp、ollama、openllm
 
 vllm是支持并发最好的，llama.cpp是支持平台最多的，ollama是最简单性能也是最差的。
 
-## [vllm](https://docs.vllm.ai/en/stable/getting_started/installation/gpu/)部署
+## [vllm](https://docs.vllm.ai/en/stable/getting_started/installation/gpu/)Nvidia部署
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -346,6 +346,139 @@ docker compose -f docker-compose.bench.yaml down
 | 延迟测试        | `vllm bench latency`或 Python 脚本     |
 | 详细配置查看      | Python 直接加载 LLM 对象                   |
 
+
+## vllm 华为显卡部署
+
+首先要[安装华为显卡相关](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition)的：
+- 显卡驱动
+- 显卡固件
+- CANN-toolkit
+- CANN-kernals
+- pytorch(CANN兼容版本)。
+
+再[安装vllm相关](https://docs.vllm.ai/projects/ascend/zh-cn/latest/installation.html#)。一定要注意[版本兼容](https://docs.vllm.ai/projects/ascend/zh-cn/latest/community/versioning_policy.html)问题。比如下表：
+
+| vLLM Ascend | vLLM    | Python          | Stable CANN | PyTorch/torch_npu   |
+| ----------- | ------- | --------------- | ----------- | ------------------- |
+| v0.13.0rc1  | v0.13.0 | >= 3.10, < 3.12 | 8.3.RC2     | 2.8.0 / 2.8.0       |
+| v0.11.0     | v0.11.0 | >= 3.9 , < 3.12 | 8.3.RC2     | 2.7.1 / 2.7.1.post1 |
+| v0.12.0rc1  | v0.12.0 | >= 3.10, < 3.12 | 8.3.RC2     | 2.8.0 / 2.8.0       |
+| v0.11.0rc3  | v0.11.0 | >= 3.9, < 3.12  | 8.3.RC2     | 2.7.1 / 2.7.1.post1 |
+| v0.11.0rc2  | v0.11.0 | >= 3.9, < 3.12  | 8.3.RC2     | 2.7.1 / 2.7.1       |
+| v0.11.0rc1  | v0.11.0 | >= 3.9, < 3.12  | 8.3.RC1     | 2.7.1 / 2.7.1       |
+
+所以我如果下载8.3.RC1（华为官网推荐这个版本），那就要安装pytorch 2.7.1、vLLM v0.11.0 和 vllm-ascend v0.11.0rc1。
+
+### 准备
+
+- 教程(选择-软件安装-安装指南): https://www.hiascend.com/document/detail/zh/CANNCommunityEdition
+- 系统: 统信UOS（CentOS（RPM）体系）
+- server: 华为 泰山服务器
+- CPU: 鲲鹏920
+- GPU: Atlas 300I Duo
+- ssh信息: root@192.168.50.117 -p 36406
+
+#### 下载文件
+
+驱动、固件、CANN-toolkit、CANN-kernels
+
+- Ascend-hdk-310p-npu-driver_25.3.rc1_linux-aarch64.run
+- Ascend-hdk-310p-npu-firmware_7.8.0.2.212.run
+
+- Ascend-cann-toolkit_8.3.RC1_linux-aarch64.run
+- Ascend-cann-kernels-310p_8.3.RC1_linux-aarch64.run
+
+#### 下载链接
+
+```text
+# 驱动 & 固件 下载
+https://www.hiascend.com/hardware/firmware-drivers/community
+
+# CANN 下载（最好是 pytorch 和 CANN都下载安装了, pytorch需要基于CANN, 后者类似CUDA）
+https://www.hiascend.com/developer/download/community
+https://www.hiascend.com/zh/developer/download/community/result?module=cann
+https://www.hiascend.com/developer/download/community/result?module=pt+cann&pt=7.2.0&cann=8.3.RC1&product=2&model=17
+```
+
+### 安装驱动 & 固件
+
+1. 拷贝
+
+```bash
+scp -P 36406 Ascend-hdk-310p-npu-driver_25.3.rc1_linux-aarch64.run root@192.168.50.117:/opt/
+scp -P 36406 Ascend-hdk-310p-npu-firmware_7.8.0.2.212.run root@192.168.50.117:/opt/
+```
+
+2. 安装
+
+```bash
+cd /opt
+id HwHiAiUser
+
+# 如果没有该用户
+groupadd HwHiAiUser
+useradd -g HwHiAiUser -d /home/HwHiAiUser -m -s /bin/bash HwHiAiUser
+
+chmod +x Ascend-hdk-310p-npu-driver_25.3.rc1_linux-aarch64.run
+chmod +x Ascend-hdk-310p-npu-firmware_7.8.0.2.212.run
+
+./Ascend-hdk-310p-npu-driver_25.3.rc1_linux-aarch64.run --check
+./Ascend-hdk-310p-npu-firmware_7.8.0.2.212.run --check
+
+# 如果check ok
+./Ascend-hdk-310p-npu-driver_25.3.rc1_linux-aarch64.run --full --install-for-all
+./Ascend-hdk-310p-npu-firmware_7.8.0.2.212.run --full
+
+# 重启
+reboot
+
+# 检查是否有驱动
+npu-smi info
+```
+
+### 安装 CANN
+
+
+1. 拷贝
+
+```bash
+scp -P 36406 Ascend-cann-toolkit_8.3.RC1_linux-aarch64.run root@192.168.50.117:/opt/
+scp -P 36406 Ascend-cann-kernels-310p_8.3.RC1_linux-aarch64.run root@192.168.50.117:/opt/
+```
+
+2. 安装
+
+```bash
+cd /opt
+chmod +x Ascend-cann-toolkit_8.3.RC1_linux-aarch64.run
+./Ascend-cann-toolkit_8.3.RC1_linux-aarch64.run --check
+
+# 如果 check All good.
+./Ascend-cann-toolkit_8.3.RC1_linux-aarch64.run --install
+
+# 安装完成后，若显示后文信息，则说明软件安装成功：xxx install success
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+
+# 安装 cann-kernels
+chmod +x Ascend-cann-kernels-<chip_type>_<version>_linux.run
+./Ascend-cann-kernels-310p_8.3.RC1_linux-aarch64.run --check
+
+# 如果 check All good.
+./Ascend-cann-kernels-310p_8.3.RC1_linux-aarch64.run --install
+
+# 刚才设置的环境变量需要在 bashrc/zshrc 中生效
+echo '. /usr/local/Ascend/ascend-toolkit/set_env.sh' >> ~/.bashrc
+source ~/.bashrc
+echo '. /usr/local/Ascend/ascend-toolkit/set_env.sh' >> ~/.zshrc
+source ~/.zshrc
+```
+
+
+### 安装 pytorch
+
+
+
+### 部署 vllm-ascend
 
 
 ## 模型与显卡的性能指标
