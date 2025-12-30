@@ -471,14 +471,53 @@ echo '. /usr/local/Ascend/ascend-toolkit/set_env.sh' >> ~/.bashrc
 source ~/.bashrc
 echo '. /usr/local/Ascend/ascend-toolkit/set_env.sh' >> ~/.zshrc
 source ~/.zshrc
+
+# 查看 CANN 版本信息
+cat /usr/local/Ascend/ascend-toolkit/latest/$(uname -m)-linux/ascend_toolkit_install.info
 ```
 
 
-### 安装 pytorch
-
-
-
 ### 部署 vllm-ascend
+
+python 版本和docker版本是相互独立的，但都依赖上述安装的系统级软件包。docker其实就是在容器里安装好了python，所以使用docker是更方便的。
+
+#### docker 部署
+
+- [注意看其中的docker部分](https://docs.vllm.ai/projects/ascend/zh-cn/latest/installation.html#)
+- [vllm-ascend-docker](https://quay.io/repository/ascend/vllm-ascend?tab=tags)
+
+```bash
+docker pull quay.io/ascend/vllm-ascend:v0.11.0rc1-310p
+```
+
+#### python 部署(与docker部署替代关系)
+
+
+##### 安装 pytorch
+
+
+1. 先安装python
+
+版本不能随便安装，要结合所有库的支持版本的交集，比如vllm 0.11.0 要求python版本不低于3.9，那么python 3.8就不行。各种都要搜集。我综合各种条件决定安装 python 3.11.13。
+
+可以选择源码安装。
+```bash
+# 安装 python 编译依赖
+yum install -y gcc gcc-c++ make wget \
+  zlib-devel bzip2-devel xz-devel \
+  readline-devel sqlite-devel \
+  openssl-devel libffi-devel \
+  ncurses-devel tk-devel gdbm-devel
+```
+
+2. 再安装 pytorch
+
+- [华为官网-安装pytorch教程](https://www.hiascend.com/document/detail/zh/Pytorch/720/configandinstg/instg/insg_0004.html)
+	再次强调，注意版本！
+
+3. 部署 pip 版 vllm
+
+- [注意看其中的pip部分](https://docs.vllm.ai/projects/ascend/zh-cn/latest/installation.html#)
 
 
 ## 模型与显卡的性能指标
