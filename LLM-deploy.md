@@ -390,15 +390,9 @@ docker compose -f docker-compose.bench.yaml down
 
 #### 下载链接
 
-```text
-# 驱动 & 固件 下载
-https://www.hiascend.com/hardware/firmware-drivers/community
+- [ 驱动 & 固件 下载](https://www.hiascend.com/hardware/firmware-drivers/community
+- [CANN 下载](https://www.hiascend.com/zh/developer/download/community/result?module=cann)（最好是 [pytorch 和 CANN](https://www.hiascend.com/developer/download/community/result?module=pt+cann&pt=7.2.0&cann=8.3.RC1&product=2&model=17)都下载安装了, pytorch需要基于CANN, 后者类似CUDA）
 
-# CANN 下载（最好是 pytorch 和 CANN都下载安装了, pytorch需要基于CANN, 后者类似CUDA）
-https://www.hiascend.com/developer/download/community
-https://www.hiascend.com/zh/developer/download/community/result?module=cann
-https://www.hiascend.com/developer/download/community/result?module=pt+cann&pt=7.2.0&cann=8.3.RC1&product=2&model=17
-```
 
 ### 安装驱动 & 固件
 
@@ -485,6 +479,8 @@ python 版本和docker版本是相互独立的，但都依赖上述安装的系�
 
 - [注意看其中的docker部分](https://docs.vllm.ai/projects/ascend/zh-cn/latest/installation.html#)
 - [vllm-ascend-docker](https://quay.io/repository/ascend/vllm-ascend?tab=tags)
+- [cann-py-docker](https://hub.docker.com/r/ascendai/cann/tags)
+- [ascend-docker国内快速](https://quay.io/organization/ascend)
 
 ```bash
 docker pull quay.io/ascend/vllm-ascend:v0.11.0rc1-310p
@@ -518,7 +514,14 @@ path=/usr/local/Ascend/ascend-toolkit/8.3.RC1/aarch64-linux
 
 #### python 部署(与docker部署替代关系)
 
+除了下文这种方式，还可以自己根据官方支持的docker镜像来安装自己的python镜像。
+- [cann-py-docker](https://hub.docker.com/r/ascendai/cann/tags)
+- [ascend-docker国内快速](https://quay.io/organization/ascend)
 
+```bash
+docker pull quay.io/ascend/cann:8.3.rc1-310p-ubuntu22.04-py3.11
+
+```
 ##### 安装 pytorch
 
 
@@ -544,6 +547,16 @@ yum install -y gcc gcc-c++ make wget \
 3. 部署 pip 版 vllm
 
 - [注意看其中的pip部分](https://docs.vllm.ai/projects/ascend/zh-cn/latest/installation.html#)
+
+
+
+## llama.cpp 华为显卡部署
+
+- [llama.cpp-CANN](https://github.com/ggml-org/llama.cpp/blob/master/docs/backend/CANN.md)
+
+```bash
+git clone https://git.ustc.edu.cn/ustc-os-lab/llama.cpp.git
+```
 
 
 ## 模型与显卡的性能指标

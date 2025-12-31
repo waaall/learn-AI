@@ -1,0 +1,57 @@
+services:
+  vllm:
+    image: quay.io/ascend/vllm-ascend:v0.11.0rc1-310p
+    container_name: vllm-ascend-qwen3-30B
+    restart: unless-stopped
+    network_mode: host
+    shm_size: "32g"
+    ipc: host
+    environment:
+      - TZ=Asia/Shanghai
+      # 单卡只暴露 0（如显卡编号不是 0，改成对应编号）
+      - ASCEND_RT_VISIBLE_DEVICES=0
+      # 常用的 NPU PyTorch 内存分配参数，减少碎片导致的 OOM 风险
+      - PYTORCH_NPU_ALLOC_CONF=max_split_size_mb:256
+      # 关键：必须禁用 NZ 格式以避免权重处理错误
+      - VLLM_ASCEND_ENABLE_NZ=0
+    devices:
+      # 单卡：只挂一张（通常是 /dev/davinci0）
+      - /dev/davinci0:/dev/davinci0
+      - /dev/davinci_manager:/dev/davinci_manager
+      - /dev/devmm_svm:/dev/devmm_svm
+      - /dev/hisi_hdc:/dev/hisi_hdc
+
+    volumes:
+      # 模型目录
+      - /opt/Qwen3-30B-A3B-AWQ-4bit:/models/qwen3-awq:ro
+
+      # 昇腾运行所需（按官方 docker 示例）
+      - /usr/local/dcmi:/usr/local/dcmi
+      - /usr/local/bin/npu-smi:/usr/local/bin/npu-smi
+      - /usr/local/Ascend/driver/lib64/:/usr/local/Ascend/driver/lib64/
+      - /usr/local/Ascend/driver/version.info:/usr/local/Ascend/driver/version.info
+      - /etc/ascend_install.info:/etc/ascend_install.info
+      # 缓存落宿主机，容器重建不丢
+      - /root/.cache:/root/.cache
+    command:
+      - vllm
+      - serve
+      - /models/qwen3-awq
+      - --served-model-name
+      - Qwen3-30B-A3B-Instruct-2507-AWQ-4bi
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --max-model-len
+      - "8192"
+      - --max-num-seqs
+      - "2"
+      - --enable-prefix-caching
+      - --enable-chunked-prefill
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8000/v1/models >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
