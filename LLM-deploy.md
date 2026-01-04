@@ -557,7 +557,27 @@ yum install -y gcc gcc-c++ make wget \
 - [llama.cpp-CANN](https://github.com/ggml-org/llama.cpp/blob/master/docs/backend/CANN.md)
 
 ```bash
+# clone 代码 (国内镜像)
 git clone https://git.ustc.edu.cn/ustc-os-lab/llama.cpp.git
+
+# 查看可用版本
+yum list | grep gcc-toolset
+
+# 安装
+sudo yum install -y \
+  gcc-toolset-12-gcc \
+  gcc-toolset-12-gcc-c++ \
+  gcc-toolset-12-libstdc++-devel
+
+#
+source /opt/rh/gcc-toolset-11/enable
+
+# gcc-toolset-12 (加入环境变量, 如果想要持久生效加入 .zshrc)  
+export GCC12_ROOT=/opt/UOS/gcc-toolset-12/root/usr
+export PATH="$GCC12_ROOT/bin:$PATH"
+
+# 库环境变量可能会有问题: 某些程序本来应该加载系统的库版本，但因为把 toolset 的 libstdc++ 放前面，程序加载了不同版本的 libstdc++.so.6，少数情况下会出现兼容性问题
+export LD_LIBRARY_PATH="$GCC12_ROOT/lib64:${LD_LIBRARY_PATH}"
 ```
 
 
