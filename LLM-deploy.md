@@ -392,9 +392,11 @@ docker compose -f docker-compose.bench.yaml down
 
 - [ 驱动 & 固件 下载](https://www.hiascend.com/hardware/firmware-drivers/community
 - [CANN 下载](https://www.hiascend.com/zh/developer/download/community/result?module=cann)（最好是 [pytorch 和 CANN](https://www.hiascend.com/developer/download/community/result?module=pt+cann&pt=7.2.0&cann=8.3.RC1&product=2&model=17)都下载安装了, pytorch需要基于CANN, 后者类似CUDA）
-
+- [cann-driver仓库(可以参考实现,但不刚需)](https://gitcode.com/cann/driver)
 
 ### 安装驱动 & 固件
+
+
 
 1. 拷贝
 
@@ -557,6 +559,11 @@ yum install -y gcc gcc-c++ make wget \
 ```bash
 git clone https://git.ustc.edu.cn/ustc-os-lab/llama.cpp.git
 ```
+
+
+## tensorflow 华为显卡
+
+- [ascend-tensorflow仓库](https://gitee.com/ascend/tensorflow)
 
 
 ## 模型与显卡的性能指标
