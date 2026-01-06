@@ -88,7 +88,7 @@ def get_detailed_info():
         "/v1/model_info",
         "/metrics",  # Prometheus 格式的指标
     ]
-    
+
     for ep in endpoints:
         try:
             resp = requests.get(f"{BASE_URL}{ep}")
@@ -105,13 +105,13 @@ def get_metrics_parsed():
     """解析 Prometheus 指标中的 KV Cache 信息"""
     resp = requests.get(f"{BASE_URL}/metrics")
     lines = resp.text.split('\n')
-    
+
     print("\n=== KV Cache 相关指标 ===")
     kv_keywords = ['kv_cache', 'gpu_cache', 'cache_block', 'prefix_cache']
     for line in lines:
         if any(kw in line.lower() for kw in kv_keywords):
             print(line)
-    
+
     print("\n=== GPU 内存相关 ===")
     mem_keywords = ['gpu_memory', 'memory_usage']
     for line in lines:
@@ -349,9 +349,10 @@ docker compose -f docker-compose.bench.yaml down
 
 ## vllm 华为显卡部署
 
-首先要[安装华为显卡相关](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition)的：
-- 显卡驱动
-- 显卡固件
+首先要[确认操作系统和硬件的兼容性](https://www.hiascend.com/hardware/compatibility)。（这个链接的兼容性好像更严格）
+
+[安装华为显卡相关](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition)的：
+- [显卡驱动 & 固件](https://www.hiascend.com/hardware/firmware-drivers/community)
 - CANN-toolkit
 - CANN-kernals
 - pytorch(CANN兼容版本)。
@@ -367,7 +368,7 @@ docker compose -f docker-compose.bench.yaml down
 | v0.11.0rc2  | v0.11.0 | >= 3.9, < 3.12  | 8.3.RC2     | 2.7.1 / 2.7.1       |
 | v0.11.0rc1  | v0.11.0 | >= 3.9, < 3.12  | 8.3.RC1     | 2.7.1 / 2.7.1       |
 
-所以我如果下载8.3.RC1（华为官网推荐这个版本），那就要安装pytorch 2.7.1、vLLM v0.11.0 和 vllm-ascend v0.11.0rc1。
+所以我如果下载8.3.RC1（华为官网推荐这个版本），那就要安装pytorch 2.7.1、vLLM v0.11.0 和 vllm-ascend v0.11.0rc1。注意如果使用docker，那么CANN是容器中的，宿主机只是显卡驱动和显卡固件要兼容，
 
 ### 准备
 
@@ -390,7 +391,7 @@ docker compose -f docker-compose.bench.yaml down
 
 #### 下载链接
 
-- [ 驱动 & 固件 下载](https://www.hiascend.com/hardware/firmware-drivers/community
+- [ 驱动 & 固件 下载](https://www.hiascend.com/hardware/firmware-drivers/community)
 - [CANN 下载](https://www.hiascend.com/zh/developer/download/community/result?module=cann)（最好是 [pytorch 和 CANN](https://www.hiascend.com/developer/download/community/result?module=pt+cann&pt=7.2.0&cann=8.3.RC1&product=2&model=17)都下载安装了, pytorch需要基于CANN, 后者类似CUDA）
 - [cann-driver仓库(可以参考实现,但不刚需)](https://gitcode.com/cann/driver)
 
@@ -401,14 +402,14 @@ docker compose -f docker-compose.bench.yaml down
 1. 拷贝
 
 ```bash
-scp -P 36406 Ascend-hdk-310p-npu-driver_25.3.rc1_linux-aarch64.run root@192.168.50.117:/opt/
-scp -P 36406 Ascend-hdk-310p-npu-firmware_7.8.0.2.212.run root@192.168.50.117:/opt/
+scp -P 36406 Ascend-hdk-310p-npu-driver_25.3.rc1_linux-aarch64.run root@192.168.50.117:/home/LLM_project/CANN/
+scp -P 36406 Ascend-hdk-310p-npu-firmware_7.8.0.2.212.run root@192.168.50.117:/home/LLM_project/CANN/
 ```
 
 2. 安装
 
 ```bash
-cd /opt
+cd /home/LLM_project/CANN
 id HwHiAiUser
 
 # 如果没有该用户
@@ -438,33 +439,33 @@ npu-smi info
 1. 拷贝
 
 ```bash
-scp -P 36406 Ascend-cann-toolkit_8.3.RC1_linux-aarch64.run root@192.168.50.117:/opt/
-scp -P 36406 Ascend-cann-kernels-310p_8.3.RC1_linux-aarch64.run root@192.168.50.117:/opt/
+scp -P 36406 Ascend-cann-toolkit_8.3.RC1_linux-aarch64.run root@192.168.50.117:/home/LLM_project/CANN/
+scp -P 36406 Ascend-cann-kernels-310p_8.3.RC1_linux-aarch64.run root@192.168.50.117:/home/LLM_project/CANN/
 ```
 
 2. 安装
 
 ```bash
-cd /opt
+cd /home/LLM_project/CANN
 chmod +x Ascend-cann-toolkit_8.3.RC1_linux-aarch64.run
 ./Ascend-cann-toolkit_8.3.RC1_linux-aarch64.run --check
 
-# 如果 check All good.
+# 如果 check All good. （如果是升级，就 --upgrade）
 ./Ascend-cann-toolkit_8.3.RC1_linux-aarch64.run --install
 
 # 安装完成后，若显示后文信息，则说明软件安装成功：xxx install success
 source /usr/local/Ascend/ascend-toolkit/set_env.sh
 
-# 安装 cann-kernels
+# 安装 cann-kernels 
 chmod +x Ascend-cann-kernels-<chip_type>_<version>_linux.run
 ./Ascend-cann-kernels-310p_8.3.RC1_linux-aarch64.run --check
 
-# 如果 check All good.
+# 如果 check All good. （kernels升级也要用install upgrade有问题）
 ./Ascend-cann-kernels-310p_8.3.RC1_linux-aarch64.run --install
 
 # 刚才设置的环境变量需要在 bashrc/zshrc 中生效
-echo '. /usr/local/Ascend/ascend-toolkit/set_env.sh' >> ~/.bashrc
-source ~/.bashrc
+# echo '. /usr/local/Ascend/ascend-toolkit/set_env.sh' >> ~/.bashrc
+# source ~/.bashrc
 echo '. /usr/local/Ascend/ascend-toolkit/set_env.sh' >> ~/.zshrc
 source ~/.zshrc
 
@@ -472,6 +473,48 @@ source ~/.zshrc
 cat /usr/local/Ascend/ascend-toolkit/latest/$(uname -m)-linux/ascend_toolkit_install.info
 ```
 
+
+3. 安装NNAL神经网络加速库（可选）
+
+NNAL神经网络加速库中提供了ATB（Ascend Transformer Boost）加速库和SiP（AscendSiPBoost）信号处理加速库。
+
+加速库安装之前，需已安装同一版本的Toolkit并配置环境变量。
+
+1. 增加对软件包的可执行权限。
+```bash
+chmod +x Ascend-cann-nnal_<version>_linux-aarch64.run
+```
+
+2. 安装软件包（安装命令支持`--install-path=<path>`等参数，具体使用方式请参见[参数说明](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850alpha002/softwareinst/instg/instg_0043.html)）。
+```bash
+./Ascend-cann-nnal_8.5.0.alpha002_linux-aarch64.run --install
+```
+如果用户未指定安装路径，则软件会安装到默认路径下，默认安装路径如下。root用户：“/usr/local/Ascend”，非root用户：`_${HOME}_/Ascend`，`_${HOME}_`为当前用户目录。
+
+3. 配置环境变量，当前以root用户安装后的默认路径为例，请用户根据加速库对应的set_env.sh的实际路径进行替换。需注意，不支持同时配置ATB和SiP的环境变量脚本。
+
+- ATB加速库：
+```bash
+source /usr/local/Ascend/nnal/atb/set_env.sh
+
+# 如果不报错
+echo '. /usr/local/Ascend/nnal/atb/set_env.sh' >> ~/.zshrc
+source ~/.zshrc
+```
+ 
+- SiP加速库：
+```bash
+source /usr/local/Ascend/nnal/asdsip/set_env.sh
+
+# 如果不报错
+echo '. /usr/local/Ascend/nnal/asdsip/set_env.sh' >> ~/.zshrc
+source ~/.zshrc
+
+# 如果报错
+export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+```
+
+上述环境变量配置只在当前窗口生效，用户可以按需将以上命令写入环境变量配置文件（如.bashrc文件）。
 
 ### 部署 vllm-ascend
 
@@ -529,12 +572,37 @@ docker pull quay.io/ascend/cann:8.3.rc1-310p-ubuntu22.04-py3.11
 
 1. 先安装python
 
+
 版本不能随便安装，要结合所有库的支持版本的交集，比如vllm 0.11.0 要求python版本不低于3.9，那么python 3.8就不行。各种都要搜集。我综合各种条件决定安装 python 3.11.13。
 
-可以选择源码安装。
+```bash
+# 查看 python 支持的版本
+yum list | grep python
+
+# 已当前系统支持的python39为例
+sudo yum module enable -y python39
+sudo yum install -y python39 python39-pip python39-setuptools python39-wheel
+
+# 安装uv
+pip3.9 install uv
+
+# 安装虚拟环境
+mkdir -p ~/.python-user
+uv venv --python /usr/bin/python3.9 ~/.python-user/default
+
+# 虚拟环境临时生效
+source ~/.python-user/default/bin/activate
+```
+
+上述版本如果不能满足要求，可以选择源码安装（但是gcc 版本不太行，安装gcc高版本要见《llama.cpp 本地编译(华为)》）
 ```bash
 # 安装 python 编译依赖
-yum install -y gcc gcc-c++ make wget \
+sudo yum install -y \
+  gcc-toolset-12-gcc \
+  gcc-toolset-12-gcc-c++ \
+  gcc-toolset-12-libstdc++-devel
+
+sudo yum install -y make wget \
   zlib-devel bzip2-devel xz-devel \
   readline-devel sqlite-devel \
   openssl-devel libffi-devel \
@@ -550,15 +618,39 @@ yum install -y gcc gcc-c++ make wget \
 
 - [注意看其中的pip部分](https://docs.vllm.ai/projects/ascend/zh-cn/latest/installation.html#)
 
+### vllm 华为 bug
+
+- [LinearOperation CreateOperation failed](https://github.com/Ascend/pytorch/issues/94)
+- [vllm-ascend:v0.11.0rc2 qwen3-next-80B OOM](https://github.com/vllm-project/vllm-ascend/issues/4474)
+
 
 
 ## llama.cpp 华为显卡部署
+
+同样是有两种方式，推荐是docker，因为本地gcc相关的环境容易改出问题
+
+###  1-1 llama.cpp docker (华为)
+
+- [llama.cpp-docker](https://github.com/ggml-org/llama.cpp/blob/master/docs/docker.md)
+
+```bash
+git clone https://git.ustc.edu.cn/ustc-os-lab/llama.cpp.git
+cd llama.cpp
+
+# 编辑这个dockerfile 修改基础镜像的版本适配本机安装的CANN, 然后 :wq 保存
+vim .devops/llama.cpp.cann.Dockerfile
+
+docker build -f .devops/cann.Dockerfile -t llama-cpp-cann:full --target full .
+```
+
+###  1-2 llama.cpp 本地编译(华为)
 
 - [llama.cpp-CANN](https://github.com/ggml-org/llama.cpp/blob/master/docs/backend/CANN.md)
 
 ```bash
 # clone 代码 (国内镜像)
 git clone https://git.ustc.edu.cn/ustc-os-lab/llama.cpp.git
+cd llama.cpp
 
 # 查看可用版本
 yum list | grep gcc-toolset
@@ -569,16 +661,112 @@ sudo yum install -y \
   gcc-toolset-12-gcc-c++ \
   gcc-toolset-12-libstdc++-devel
 
-#
-source /opt/rh/gcc-toolset-11/enable
-
 # gcc-toolset-12 (加入环境变量, 如果想要持久生效加入 .zshrc)  
 export GCC12_ROOT=/opt/UOS/gcc-toolset-12/root/usr
 export PATH="$GCC12_ROOT/bin:$PATH"
 
 # 库环境变量可能会有问题: 某些程序本来应该加载系统的库版本，但因为把 toolset 的 libstdc++ 放前面，程序加载了不同版本的 libstdc++.so.6，少数情况下会出现兼容性问题
 export LD_LIBRARY_PATH="$GCC12_ROOT/lib64:${LD_LIBRARY_PATH}"
+
+source /usr/local/Ascend/ascend-toolkit/set_env.sh --force
+
+cmake -B build \
+-DGGML_CANN=ON \
+-DCMAKE_BUILD_TYPE=Release \
+-DSOC_TYPE=ascend${CHIP_TYPE} \
+
+cmake --build build --config Release -j$(nproc)
+
+# 运行可能还有问题, 因为有些依赖的动态库可能版本不兼容
+
 ```
+
+### 2. llama.cpp 模型
+
+- [unsloth-qwen3](https://unsloth.ai/docs/models/qwen3-how-to-run-and-fine-tune)
+
+- 它的入口通常是 llama-cli
+
+- CANN 后端对量化格式有限制
+    仓库的 CANN 指南明确写了：目前只支持 **FP16 / Q4_0 / Q8_0**。
+    这点很关键：Hugging Face 上很多 GGUF 是 Q4_K_M、Q5_K_M、IQ* 等，你在 Ascend/CANN 上不一定能用（至少这份指南口径是不支持）。
+
+- lama.cpp 通用要求：模型必须是 GGUF
+    llama.cpp 官方 README：llama.cpp 需要模型是 **GGUF**；其他格式要用仓库里的 convert_*.py 脚本转换。
+
+```bash
+pip install -U huggingface_hub
+
+export HF_ENDPOINT=https://hf-mirror.com
+
+mkdir -p /home/LLM_project/models/GUFF/Qwen3-30B-A3B-Q4_0
+
+hf download unsloth/Qwen3-30B-A3B-GGUF Qwen3-30B-A3B-Q4_0.gguf \
+   --local-dir /home/LLM_project/models/GUFF/Qwen3-30B-A3B-Q4_0
+```
+
+
+### 3-1 docker 部署
+
+- 《AI-config/llama-cpp-docker/llama-cpp-ascend.yml》
+
+```bash
+docker compose -f llama-cpp-ascend.yml up -d
+```
+
+### 3-2 本地运行
+
+```bash
+# Use a local model file
+llama-cli -m my_model.gguf
+
+# Or download and run a model directly from Hugging Face
+llama-cli -hf ggml-org/gemma-3-1b-it-GGUF
+
+# Launch OpenAI-compatible API server
+llama-server -hf ggml-org/gemma-3-1b-it-GGUF
+```
+
+### 4 llama.cpp MoE bug
+
+
+```
+load_tensors:        CANN0 model buffer size =    48.80 MiB   ← NPU 只放了 48MB
+load_tensors:  CPU_AARCH64 model buffer size = 15390.00 MiB  ← 模型主体还在 CPU
+```
+
+虽然显示 `offloaded 49/49 layers`，但实际上 **MoE 的专家层没有真正卸载到 NPU**。
+
+这是 llama.cpp CANN 后端对 **MoE 架构支持不完整** 的问题。Qwen3-30B-A3B 有 128 个专家，这些专家权重仍在 CPU 上。
+
+#### 验证方式
+
+```
+graph splits = 483
+```
+
+483 次 CPU/NPU 切换，说明大量计算在 CPU 和 NPU 之间来回跳。
+
+#### 解决方案
+
+**方案 1：换非 MoE 模型**（推荐）
+
+在 310P3 上跑 **Qwen2.5-14B** 或 **Qwen2.5-7B** 这类 Dense 模型会快很多：
+
+```bash
+# 下载 Qwen2.5-14B-Instruct Q4_K_M（约 8.5GB，完全放得下）
+```
+
+**方案 2：继续用 vLLM**
+
+你之前用的 vLLM 对华为 NPU 和 MoE 架构支持应该更成熟。如果一定要跑 Qwen3-30B-A3B，vLLM 可能是更好的选择。
+
+**方案 3：等 llama.cpp 更新**
+
+CANN 后端对 MoE 的支持还在完善中，可以关注 [llama.cpp CANN 相关 issue](https://github.com/ggerganov/llama.cpp/issues)。
+
+---
+
 
 
 ## tensorflow 华为显卡
@@ -604,357 +792,6 @@ export LD_LIBRARY_PATH="$GCC12_ROOT/lib64:${LD_LIBRARY_PATH}"
 单卡的性能（q4 q8 的tops）、单卡的显存容量、单卡的显存带宽
 
 多卡的通信瓶颈、有无nvlink的差距；nvlink的支持情况。
-
-
-## LLM部署性能对比分析
-
-
-- [benchmarking_llm_inference_on_rtx_4090/5090/6000](https://www.reddit.com/r/LocalLLaMA/comments/1o387tc/benchmarking_llm_inference_on_rtx_4090_rtx_5090/)
-
-随着Blackwell架构GPU和改进的MoE架构的出现，运行70-120B参数模型的硬件格局发生了重大变化，但**关键的NVLink缺失限制了多GPU扩展能力**。RTX PRO 6000的96GB显存支持70B模型单卡部署，而双RTX 5090配置在Llama 3.3-70B上实现了**27 tokens/秒**，但由于缺少NVLink存在已记录的P2P通信问题。Apple M4 Max凭借统一内存优势在70B Q4模型上达到**10-12 tok/s**，而华为Atlas 300I Duo虽提供96GB容量，但**每芯片204 GB/s带宽 & tops性能不足**——不到NVIDIA最新产品的五分之一。
-
------
-
-### 一、模型规格与显存需求
-
-三款目标模型均已公开发布并可部署，但命名上存在一些变体值得注意。
-
-#### 1.1 Llama 3/3.1-70B
-
-仍是基准测试的标准模型，拥有700亿参数，128K上下文长度（3.1版本），在各种量化级别下都有完善的性能数据。显存需求从**Q4_K_M的39.6GB**到**FP16的140GB**不等，非常适合RTX PRO 6000的96GB显存或M4 Max的128GB统一内存。
-
-#### 1.2 Qwen3-Next-80B-A3B-Instruct-FP8
-
-是一款混合Transformer-Mamba MoE架构模型，总参数量80B但**每token仅激活3.9B参数**。它使用512个路由专家，每次前向传播激活10个，在32K以上上下文时相比稠密版Qwen3-32B可实现10倍推理吞吐量。该模型在Arena-Hard v2基准测试中达到82.7分，与Qwen3-235B-A22B相当，但每token所需算力大幅降低。
-
-#### 1.3 gpt-oss-120B
-
-（2025年8月发布）包含117B参数，通过128个专家激活5.1B参数。其原生MXFP4量化支持**单张H100部署**，RedHatAI提供FP8变体。该模型在核心推理基准上接近o4-mini水平，同时完全开源（Apache 2.0协议）。
-
-#### 1.4 模型参数总览表
-
-|模型                |总参数量|激活参数量  |量化后大小(FP8/Q4)   |原生上下文长度    |
-|------------------|----|-------|----------------|-----------|
-|Llama 3.1-70B     |70B |70B（稠密）|35-40GB (Q4)    |128K       |
-|Qwen3-Next-80B-A3B|80B |3.9B   |~80GB (FP8)     |262K（扩展至1M）|
-|gpt-oss-120B      |117B|5.1B   |~60-65GB (MXFP4)|128K       |
-
------
-
-### 二、GPU硬件规格对比
-
-四种硬件配置涵盖完全不同的架构、价格区间和部署场景。
-
-#### 2.1 NVIDIA RTX PRO 6000 Blackwell（96GB）
-
-NVIDIA旗舰工作站GPU通过512位GDDR7（带ECC）提供**1,792 GB/s显存带宽**，配备752个第五代Tensor Core。
-
-**计算性能规格：**
-
-- FP8：503.80 TFLOPS（稀疏加速后1,007.61 TFLOPS）
-- INT8：1,007 TOPS（稀疏加速后2,015 TOPS）
-
-96GB容量可在单卡上完整运行Q8量化的Llama 3-70B而无需拆分。
-
-**关键限制：不支持NVLink。** NVIDIA将NVLink专用于数据中心GPU，工作站多GPU配置只能依赖PCIe 5.0 x16（约64 GB/s双向带宽）进行GPU间通信。
-
-#### 2.2 NVIDIA RTX 5090（32GB × 2）
-
-消费级旗舰采用相同的Blackwell架构（GB202），拥有**21,760个CUDA核心**、680个Tensor Core，以及同样的**1,792 GB/s单卡显存带宽**。
-
-**性能规格：**
-
-- FP8：419 TFLOPS（稀疏加速后838 TFLOPS）
-- INT8：838 TOPS（稀疏加速后1,676 TOPS）
-
-双卡提供64GB总显存——足以运行Q4量化的Llama 3-70B并留有KV缓存空间。
-
-**多GPU挑战已有充分文档记录。** GitHub issues和NVIDIA论坛报告显示，双RTX 5090配置的vLLM张量并行需要设置`NCCL_P2P_DISABLE=1`，用户会看到”由于您的平台缺乏GPU P2P能力，自定义allreduce已禁用”的警告。实际使用中流水线并行比张量并行更可靠。
-
-#### 2.3 Apple M4 Max（128GB统一内存）
-
-Apple顶级消费芯片为其40核GPU和16核神经引擎提供**546 GB/s内存带宽**。统一内存架构消除了模型权重的PCIe传输瓶颈，使70B+模型可以完全在内存中运行，无需复杂的多GPU协调。功耗约**60W**，而NVIDIA独立方案需要575W以上。
-
-带宽限制——约为RTX 5090的3.3分之一——直接制约了内存带宽受限推理工作负载的token生成速度。
-
-#### 2.4 华为Atlas 300I Duo（96GB）
-
-这款双NPU卡使用两颗昇腾310P3芯片（达芬奇架构），每颗配备48GB LPDDR4X。总容量达96GB，但**每颗芯片独立限制在204 GB/s带宽**——这是关键瓶颈。
-
-**计算规格：**
-
-- INT8：280 TOPS
-- FP16：140 TFLOPS
-- TDP：150W（被动散热设计，面向服务器环境）
-
-**生态系统摩擦仍然显著。** 该卡需要基于华为鲲鹏920的服务器和仅Linux运行环境，不兼容标准桌面主板。开发者描述通过CANN进行软件开发是”一条充满坑的路”。
-
-#### 2.5 GPU硬件规格总览表
-
-| GPU            | 显存      | 带宽           | FP8 TFLOPS    | INT8 TOPS       | NVLink |
-| -------------- | ------- | ------------ | ------------- | --------------- | ------ |
-| RTX PRO 6000   | 96GB    | 1,792 GB/s   | 504 (稀疏1,008) | 1,007 (稀疏2,015) | ❌      |
-| RTX 5090       | 32GB    | 1,792 GB/s   | 419 (稀疏838)   | 838 (稀疏1,676)   | ❌      |
-| M4 Max 40核     | 128GB共享 | 546 GB/s     | N/A           | N/A             | N/A    |
-| Atlas 300I Duo | 96GB    | 204 GB/s × 2 | N/A           | 280             | N/A    |
-
------
-
-### 三、来自专业来源的实测基准数据
-
-以下基准数据完全来自有据可查的来源，包括GitHub仓库、专业评测网站和社区测试。明确排除估算值。
-
-#### 3.1 Llama 3-70B跨硬件性能
-
-来自GPU-Benchmarks-on-LLM-Inference（GitHub）的**vLLM和llama.cpp基准测试**提供了最全面的跨平台比较：
-
-|硬件            |量化    |Token生成 (tok/s)|提示处理 (tok/s)|
-|--------------|------|---------------|------------|
-|H100 PCIe 80GB|Q4_K_M|25.03          |1,012       |
-|A100 SXM 80GB |Q4_K_M|24.61          |817         |
-|2× RTX 4090   |Q4_K_M|19.22          |839         |
-|2× RTX 3090   |Q4_K_M|16.57          |—           |
-|M2 Ultra 192GB|Q4_K_M|12.48          |—           |
-|M3 Max 64GB   |Q4_K_M|7.65           |—           |
-
-#### 3.2 双RTX 5090实测性能
-
-（DatabaseMart/HostKey通过Ollama测试）：
-
-|模型             |Token生成速度       |
-|---------------|----------------|
-|DeepSeek-R1 70B|**27 tok/s**    |
-|Llama 3.3 70B  |**27 tok/s**    |
-|Qwen 2.5 72B   |~26 tok/s       |
-|Qwen 2.5 110B  |7.22 tok/s（显存受限）|
-
-#### 3.3 单张RTX 5090 llama.cpp基准测试
-
-（Hardware Corner，Q4_K_XL量化）：
-
-|模型              |Token生成 (tok/s)|提示处理 (tok/s)|
-|----------------|---------------|------------|
-|Qwen3 32B       |61.38          |2,931       |
-|Qwen3moe 30B.A3B|**234.30**     |—           |
-
-达到的最大上下文：**147K tokens**，Qwen3moe 30B下52.28 tok/s
-
-#### 3.4 RTX PRO 6000 Blackwell基准测试
-
-（CloudRift.ai、StorageReview）：
-
-- Qwen3-Coder-30B-A3B-Instruct-AWQ：通过vLLM达**8,425 tok/s**
-- Procyon AI基准（Llama3）：6,501
-  - 对比RTX 5090：6,104
-  - 对比RTX 4090：4,849
-- 96GB显存支持运行70B Q8模型而无需量化妥协
-
-#### 3.5 Apple M4 Max 128GB基准测试
-
-（GitHub llama.cpp、MacRumors、社区测试）：
-
-| 模型                  | 量化            | Token生成 (tok/s) | TTFT  |
-| ------------------- | ------------- | --------------- | ----- |
-| Llama 3.3 70B       | Q4 (MLX)      | ~12             | —     |
-| Command-R-Plus 104B | Q4_K_M (62GB) | 6.5             | 2.26s |
-| Command-R-Plus 104B | Q6_K (85GB)   | 4.5             | 4-9s  |
-| LLaMA 2 7B          | Q4_0          | 83.06           | —     |
-
-#### 3.6 华为Atlas 300I Duo基准测试
-
-（英文数据有限）：
-
-|模型规模     |Token生成速度|备注      |
-|---------|---------|--------|
-|Qwen3 32B|~15 tok/s|早期测试    |
-|8B级模型    |~15 tok/s|昇腾910B参考|
-|70B级Q4模型 |~5 tok/s |带宽受限    |
-
-#### 3.7 MoE模型展现显著优势
-
-**Qwen3-Next-80B-A3B** 由于3.9B激活参数比例，相比同等大小的稠密模型实现7-10倍吞吐量。Hardware Corner的基准测试显示RTX 5090上Qwen3moe 30B.A3B达到**234 tok/s**而稠密版Qwen3 32B仅**61 tok/s**，清晰展示了MoE的吞吐量优势。
-
------
-
-### 四、各平台性能瓶颈深度分析
-
-#### 4.1 RTX PRO 6000：显存容量解决70B部署问题
-
-96GB容量消除了70B模型的多GPU复杂性。Q8量化（约70GB）时，整个模型加KV缓存可以轻松装入单卡。**1,792 GB/s带宽与RTX 5090相当**，意味着每token生成速度相近，但简化的单GPU部署避免了所有P2P通信开销。
-
-**计算不是瓶颈。** 504+ FP8 TFLOPS远超LLM推理的需求——对于token生成，工作负载仍然是显存带宽受限的。真正的优势是避免了困扰双消费级GPU配置的P2P和张量并行问题。
-
-**瓶颈分析：**
-
-- ✅ 显存容量：充足（96GB）
-- ✅ 显存带宽：1,792 GB/s（优秀）
-- ✅ 计算能力：504 TFLOPS FP8（过剩）
-- ❌ 多卡扩展：无NVLink，依赖PCIe
-
-#### 4.2 双RTX 5090：PCIe限制张量并行效果
-
-没有NVLink的情况下，两张RTX 5090卡之间的张量并行必须通过PCIe 5.0传输激活值（约64 GB/s双向）。对于TP=2的Llama 70B，这为每层计算增加了可测量的延迟。已记录的P2P问题加剧了这一点——GitHub报告显示vLLM回退到较慢的NCCL实现。
-
-**流水线并行在实践中效果更好。** 与其将层水平拆分到GPU之间，不如垂直拆分模型（GPU 1处理0-39层，GPU 2处理40-79层），将通信减少到每次前向传播一次而非每层一次。这解释了为什么Ollama（使用流水线并行）达到27 tok/s，而vLLM张量并行用户报告困难。
-
-**显存带宽仍然优秀。** 每卡1,792 GB/s，双卡配置的聚合带宽超过企业级H100配置。瓶颈是GPU间通信，而非显存读取。
-
-**瓶颈分析：**
-
-- ⚠️ 显存容量：64GB（需要Q4量化）
-- ✅ 显存带宽：1,792 GB/s × 2（优秀）
-- ✅ 计算能力：838 TFLOPS FP8（过剩）
-- ❌ GPU间通信：PCIe 5.0 ~64 GB/s（主要瓶颈）
-- ❌ P2P支持：需要禁用，使用NCCL回退
-
-#### 4.3 M4 Max：统一内存实现独特部署场景
-
-128GB统一内存允许运行在NVIDIA硬件上需要多GPU拆分的模型——Q4量化的Command-R-Plus 104B完全装入内存。无需模型拆分逻辑、无需跨设备同步、无需P2P配置难题。
-
-**带宽限制70B模型的生成速度约为10-12 tok/s。** 546 GB/s统一内存带宽（约为RTX 5090的3.3分之一）直接制约token生成率。然而，对于优先考虑部署简便性、能效（60W vs 575W）或静音运行而非最大吞吐量的场景，这可能是可接受的。
-
-**提示处理比生成受影响更大。** 7B模型提示处理922 tok/s对比RTX 5090的10,000+ tok/s，预填充密集型工作负载的计算差距更明显。70B模型处理45K+ token上下文的长文档摄入可能需要25分钟以上。
-
-**瓶颈分析：**
-
-- ✅ 显存容量：128GB（优秀）
-- ❌ 显存带宽：546 GB/s（主要瓶颈）
-- ⚠️ 计算能力：相对较低
-- ✅ 部署复杂度：最低
-- ✅ 功耗：60W（极低）
-
-#### 4.4 Atlas 300I Duo：带宽瓶颈抵消容量优势
-
-尽管与RTX PRO 6000容量相当（96GB），Atlas 300I Duo的**每芯片204 GB/s带宽**造成了根本性的吞吐量上限。这比RTX 5090/PRO 6000低8.8倍，解释了为什么实测70B性能（约5 tok/s）低于M4 Max，尽管名义算力规格更高。
-
-**双芯片架构不能为单个推理任务聚合带宽。** 每颗昇腾310P3独立运行，意味着工作负载无法像统一内存系统那样跨芯片池化内存带宽。
-
-**软件生态系统摩擦加剧了硬件限制。** 报告称CANN开发体验比CUDA困难得多，英文文档和调试资源有限。这影响的是原始性能指标之外的实际部署速度。
-
-**瓶颈分析：**
-
-- ✅ 显存容量：96GB（充足）
-- ❌ 显存带宽：204 GB/s × 2（严重瓶颈，不可聚合）
-- ⚠️ 计算能力：280 TOPS INT8
-- ❌ 软件生态：CANN成熟度不足
-- ❌ 硬件兼容性：需要特定服务器平台
-
------
-
-### 五、vLLM与llama.cpp推理框架对比
-
-#### 5.1 框架特性对比
-
-**vLLM擅长并发服务。** Red Hat基准测试显示vLLM在峰值负载下提供**比llama.cpp高35倍的请求/秒**，**44倍的token吞吐量**。PagedAttention实现了批量请求间高效的KV缓存管理。
-
-**llama.cpp适合单用户场景。** 对于单请求推理，llama.cpp达到vLLM 94-100%的性能，同时启动几乎瞬时、内存开销极小、部署更简单。由于Metal优化，它仍是Apple Silicon的主要框架。
-
-#### 5.2 框架选择建议
-
-|场景           |推荐框架           |理由                          |
-|-------------|---------------|----------------------------|
-|生产API服务      |vLLM           |PagedAttention、批处理、35倍以上并发优势|
-|单用户本地推理      |llama.cpp      |更低开销、更快启动                   |
-|Apple Silicon|llama.cpp / MLX|原生Metal支持                   |
-|华为Atlas      |vllm-ascend插件  |官方昇腾支持                      |
-|多GPU张量并行     |vLLM           |原生TP支持                      |
-|资源受限环境       |llama.cpp      |更低内存占用                      |
-
------
-
-### 六、交叉对比：模型-硬件性能矩阵
-
-基于可用的实测数据和已记录的约束条件（非估算）：
-
-|硬件配置             |Llama 3-70B Q4     |Qwen3-Next-80B-A3B  |gpt-oss-120B      |
-|-----------------|-------------------|--------------------|------------------|
-|RTX PRO 6000 96GB|~25 tok/s（根据类似配置推测）|预期高吞吐量（MoE优势）       |MXFP4/FP8可装入      |
-|2× RTX 5090      |**27 tok/s**（实测）   |TP=2应可装入            |需要激进量化            |
-|M4 Max 128GB     |**10-12 tok/s**（实测）|可装入内存，预期~10-15 tok/s|Q4可装入，预期~4-6 tok/s|
-|2× Atlas 300I Duo|**~5 tok/s**（外推）   |尽管容量够但带宽受限          |可装入内存，带宽瓶颈        |
-
-**重要说明：** 由于硬件/模型较新，RTX PRO 6000和Qwen3-Next-80B-A3B的直接基准测试尚未公开。gpt-oss-120B模型基准测试聚焦于H100/MI300X数据中心硬件而非消费级/工作站配置。
-
------
-
-### 七、技术洞察与部署建议
-
-#### 7.1 MoE模型从根本上改变了计算逻辑
-
-Qwen3-Next-80B-A3B的3.9B激活参数意味着它相比稠密70B模型实现7-10倍吞吐量，同时显存占用相近。对于吞吐量敏感的应用，MoE架构提供了显著优势——前提是推理框架支持高效的专家路由。
-
-#### 7.2 NVLink缺失重塑了多GPU策略
-
-RTX 5090和RTX PRO 6000都不支持NVLink，使得流水线并行比张量并行更适合多卡配置。这与数据中心最佳实践（NVLink支持高效张量并行）形成显著差异，影响部署架构决策。
-
-#### 7.3 统一内存的简便性被低估
-
-M4 Max 128GB可以运行在NVIDIA硬件上需要4张以上独立GPU的模型——吞吐量较低，但复杂度大幅降低。对于开发、测试或延迟容忍型生产环境，部署简便性可能超过原始性能差距的影响。
-
-#### 7.4 华为Atlas以带宽为代价提供容量
-
-96GB/$1,400-2,000的价格点提供了出色的$/GB显存性价比，但204 GB/s带宽限制和软件生态系统挑战使其仅适合容量比吞吐量更重要的场景——可能是批处理或延迟不关键的异步工作负载。
-
-#### 7.5 部署场景推荐总结
-
-|部署场景      |推荐硬件               |理由                     |
-|----------|-------------------|-----------------------|
-|专业单卡70B部署 |RTX PRO 6000       |96GB单卡，无多GPU复杂性        |
-|性价比多GPU推理 |双RTX 5090          |高吞吐量，需接受P2P配置          |
-|开发/测试/静音环境|M4 Max 128GB       |部署最简单，功耗最低             |
-|容量优先/预算受限 |Atlas 300I Duo     |最低$/GB，需CANN开发能力       |
-|高并发生产服务   |RTX PRO 6000 + vLLM|单卡简化运维 + PagedAttention|
-
------
-
-### 八、参考文献
-
-1. Database Mart - “2×RTX 5090 Ollama Benchmark: Outperforming H100 & A100 for 70B LLM Inference”
-   https://www.databasemart.com/blog/ollama-gpu-benchmark-rtx5090-2
-2. Hardware Corner - “RTX 5090 LLM Benchmark Results: 10K Tokens/sec Prompt Processing, 139K Context”
-   https://www.hardware-corner.net/rtx-5090-llm-benchmarks/
-3. Hardware Corner - “Huawei’s Atlas 300I Duo offers 96GB VRAM for local LLMs under $1500”
-   https://www.hardware-corner.net/huawei-atlas-300i-duo-96gb-llm-20250830/
-4. NVIDIA - “RTX PRO 6000 Blackwell Workstation Edition”
-   https://www.nvidia.com/en-us/products/workstations/professional-desktop-gpus/rtx-pro-6000/
-5. NVIDIA NIM - “Qwen3-Next-80B-A3B Model Card”
-   https://build.nvidia.com/qwen/qwen3-next-80b-a3b-thinking/modelcard
-6. GitHub vllm-project - “Issue #14628: Multi GPU inference using two RTX 5090s(TP=2)”
-   https://github.com/vllm-project/vllm/issues/14628
-7. vLLM Forums - “Added second 5090 and turned on tensor parallel 2”
-   https://discuss.vllm.ai/t/added-second-5090-and-turne-on-tensor-parallel-2/1629
-8. MacRumors Forums - “M4 Max Studio 128GB - LLM testing”
-   https://forums.macrumors.com/threads/m4-max-studio-128gb-llm-testing.2453816/
-9. Apple Newsroom - “Apple introduces M4 Pro and M4 Max”
-   https://www.apple.com/newsroom/2024/10/apple-introduces-m4-pro-and-m4-max/
-10. GitHub llama.cpp - “Discussion #4167: Performance of llama.cpp on Apple Silicon M-series”
-   https://github.com/ggml-org/llama.cpp/discussions/4167
-11. WareDB - “NVIDIA RTX PRO 6000 Blackwell AI Performance and Hardware Specs”
-   https://www.waredb.com/processor/nvidia-rtx-pro-6000-blackwell
-12. Vast.ai - “NVIDIA GeForce RTX 5090 Specs: Everything You Need to Know”
-   https://vast.ai/article/nvidia-geforce-rtx-5090-specs-everything-you-need-to-know
-13. SabrePC - “Do You Really Need NVLink for Multi-GPU Setups?”
-   https://www.sabrepc.com/blog/computer-hardware/nvlink-vs-pcie-do-you-need-nvlink-for-multi-gpu
-14. VideoCardz - “Huawei Atlas 300I dual AI GPU with 96GB memory worth $1400 has been taken apart”
-   https://videocardz.com/newz/huawei-atlas-300i-dual-ai-gpu-with-96gb-memory-worth-1400-has-been-taken-apart
-15. ChinaTalk - “Can Huawei Take On Nvidia’s CUDA?”
-   https://www.chinatalk.media/p/can-huawei-compete-with-cuda
-16. SecondState - “Lightweight and cross-platform LLM agents on Ascend 910B”
-   https://www.secondstate.io/articles/llm-agents-on-ascend/
-17. Red Hat Developer - “vLLM or llama.cpp: Choosing the right LLM inference engine for your use case”
-   https://developers.redhat.com/articles/2025/09/30/vllm-or-llamacpp-choosing-right-llm-inference-engine-your-use-case
-18. Simon Willison - “I can now run a GPT-4 class model on my laptop”
-   https://simonwillison.net/2024/Dec/9/llama-33-70b/
-19. Ivan Fioravanti (X/Twitter) - “Llama 3.3 70B 4-bit running on a 128GB M4 Max with MLX LM”
-   https://x.com/ivanfioravanti/status/1865237429780721853
-20. Hardware Corner - “Qwen3 LLM Hardware Requirements – CPU, GPU and Memory”
-   https://www.hardware-corner.net/guides/qwen3-hardware-requirements/
-
------
-
-*报告生成日期：2025年12月23日*
-*数据来源：英文专业技术网站、GitHub仓库、社区测试*
-
 
 
 ## llm部署优化
@@ -1065,7 +902,7 @@ max_num_seqs
 
 
 - max_num_seqs 控同一轮调度里最多并发序列数
-- max_num_batched_tokens 控每轮最多处理的总 token 预算  
+- max_num_batched_tokens 控每轮最多处理的总 token 预算
     文档与参数列表里明确给出了这两个概念。 
 
 建议调参顺序（适用于你的“长输入+多用户”）：

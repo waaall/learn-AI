@@ -1,10 +1,12 @@
 services:
   vllm:
-    image: quay.io/ascend/vllm-ascend:v0.11.0rc1-310p
-    container_name: vllm-ascend-qwen3-30B
+    image: quay.io/ascend/vllm-ascend:v0.11.0-310p
+    container_name: vllm-ascend-qwen3-8B
+    ports:
+      - "8122:8000"
     restart: unless-stopped
     network_mode: host
-    shm_size: "32g"
+    shm_size: "16g"
     ipc: host
     environment:
       - TZ=Asia/Shanghai
@@ -23,11 +25,12 @@ services:
 
     volumes:
       # 模型目录
-      - /opt/Qwen3-30B-A3B-AWQ-4bit:/models/qwen3-awq:ro
+      - /home/LLM_project/models/Qwen3-8B:/models/qwen3:ro
 
       # 昇腾运行所需（按官方 docker 示例）
       - /usr/local/dcmi:/usr/local/dcmi
       - /usr/local/bin/npu-smi:/usr/local/bin/npu-smi
+      # - /usr/local/Ascend/driver:/usr/local/Ascend/driver:ro
       - /usr/local/Ascend/driver/lib64/:/usr/local/Ascend/driver/lib64/
       - /usr/local/Ascend/driver/version.info:/usr/local/Ascend/driver/version.info
       - /etc/ascend_install.info:/etc/ascend_install.info
@@ -36,17 +39,20 @@ services:
     command:
       - vllm
       - serve
-      - /models/qwen3-awq
+      - /models/qwen3
       - --served-model-name
-      - Qwen3-30B-A3B-Instruct-2507-AWQ-4bi
+      - Qwen3-8B
       - --host
       - 0.0.0.0
       - --port
       - "8000"
+      - --dtype           # dtype fp16 (不支持BF16)
+      - "float16"
       - --max-model-len
-      - "8192"
+      - "4096"
       - --max-num-seqs
-      - "2"
+      - "4"
+      - --enforce-eager   # 绕过 ACL Graph 捕获崩溃
       - --enable-prefix-caching
       - --enable-chunked-prefill
 
