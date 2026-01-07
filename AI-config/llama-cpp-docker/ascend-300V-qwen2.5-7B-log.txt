@@ -1,0 +1,44 @@
+
++--------------------------------------------------------------------------------------------------------+
+| npu-smi 25.3.rc1                                 Version: 25.3.rc1                                     |
++-------------------------------+-----------------+------------------------------------------------------+
+| NPU     Name                  | Health          | Power(W)     Temp(C)           Hugepages-Usage(page) |
+| Chip    Device                | Bus-Id          | AICore(%)    Memory-Usage(MB)                        |
++===============================+=================+======================================================+
+| 2      310P3                 | OK              | NA           60                7553  / 7553          |
+| 0      0                     | 0000:01:00.0    | 86           16984/ 21525                            |
++===============================+=================+======================================================+
++-------------------------------+-----------------+------------------------------------------------------+
+| NPU     Chip                  | Process id       | Process name             | Process memory(MB)        |
++===============================+=================+======================================================+
+| 2      0                     | 5344            | llama-server             | 15198                     |
++===============================+=================+======================================================+
+
+main: server is listening on http://0.0.0.0:8123 - starting the main loop
+srv  log_server_r: request: POST /v1/chat/completions 192.168.50.50 200
+srv  params_from_: Chat format: Content-only
+slot launch_slot_: id  0 | task 215 | processing task
+slot update_slots: id  0 | task 215 | new prompt, n_ctx_slot = 4096, n_keep = 0, n_prompt_tokens = 172
+slot update_slots: id  0 | task 215 | kv cache rm [3, end)
+slot update_slots: id  0 | task 215 | prompt processing progress, n_past = 172, n_tokens = 169, progress = 0.982558
+slot update_slots: id  0 | task 215 | prompt done, n_past = 172, n_tokens = 169
+slot      release: id  0 | task 215 | stop processing: n_past = 626, truncated = 0
+slot print_timing: id  0 | task 215 | 
+prompt eval time =     454.15 ms /   169 tokens (    2.69 ms per token,   372.12 tokens per second)
+       eval time =  144878.93 ms /   455 tokens (  318.42 ms per token,     3.14 tokens per second)
+      total time =  145333.08 ms /   624 tokens
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/chat/completions 192.168.50.50 200
+srv  params_from_: Chat format: Content-only
+slot launch_slot_: id  0 | task 671 | processing task
+slot update_slots: id  0 | task 671 | new prompt, n_ctx_slot = 4096, n_keep = 0, n_prompt_tokens = 834
+slot update_slots: id  0 | task 671 | kv cache rm [3, end)
+slot update_slots: id  0 | task 671 | prompt processing progress, n_past = 834, n_tokens = 831, progress = 0.996403
+slot update_slots: id  0 | task 671 | prompt done, n_past = 834, n_tokens = 831
+slot      release: id  0 | task 671 | stop processing: n_past = 877, truncated = 0
+slot print_timing: id  0 | task 671 | 
+prompt eval time =    1369.74 ms /   831 tokens (    1.65 ms per token,   606.68 tokens per second)
+       eval time =   13982.83 ms /    44 tokens (  317.79 ms per token,     3.15 tokens per second)
+      total time =   15352.58 ms /   875 tokens
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/chat/completions 192.168.50.50 200
