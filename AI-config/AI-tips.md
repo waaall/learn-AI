@@ -28,6 +28,14 @@ curl -fsSL https://claude.ai/install.sh | bash
 irm https://claude.ai/install.ps1 | iex
 ```
 
+##### 1.3 npm 安装
+
+无法自动更新，记得npm更新
+```bash
+# npm con
+npm install -g @anthropic-ai/claude-code
+```
+
 #### 2. 如果有claude pro 订阅
 
 就在terminal 输入 claude登录就可以，下面步骤不需要。
@@ -38,23 +46,50 @@ irm https://claude.ai/install.ps1 | iex
 
 ##### 3.1 添加环境变量
 
-unix(linux/mac) 就 export 放到.zshrc/.bashrc, windows 就加一个环境变量（重启终端/vscode生效）
-```text
-ANTHROPIC_BASE_URL=https://api.siliconflow.cn/
-ANTHROPIC_API_KEY=你的sk-key
-ANTHROPIC_MODEL=zai-org/glm-4.6
-ANTHROPIC_SMALL_FAST_MODEL=zai-org/glm-4.6
+unix(linux/mac) 就 export 放到`~/.zshrc/.bashrc`, 或者放到`~/.claude_env`然后在`~/.zshrc`中source它
+
+```bash
+cat > ~/.claude_env <<'EOF'
+export ANTHROPIC_BASE_URL="https://api.siliconflow.cn/"
+export ANTHROPIC_API_KEY="你的sk-key"
+export ANTHROPIC_MODEL="Pro/zai-org/GLM-4.7"
+export ANTHROPIC_SMALL_FAST_MODEL="Pro/zai-org/GLM-4.7"
+EOF
+
+# 收紧权限
+chmod 600 ~/.claude_env
+
+vim ~/.zshrc
 ```
 
-##### 3.2 编辑~/.claude.json 添加：
+zshrc中添加一下内容
+```bash
+CLAUDE_ENV="$HOME/.claude_env"
+if [ -f "$CLAUDE_ENV" ]; then
+  source "$CLAUDE_ENV"
+else
+  [[ -o interactive ]] && echo "Warning: $CLAUDE_ENV not found." >&2
+fi
+```
 
+windows 就加一组环境变量
+```powershell
+ANTHROPIC_BASE_URL=https://api.siliconflow.cn/
+ANTHROPIC_API_KEY=你的sk-key
+ANTHROPIC_MODEL=Pro/zai-org/GLM-4.7
+ANTHROPIC_SMALL_FAST_MODEL=Pro/zai-org/GLM-4.7
+```
+
+（重启终端/vscode/source ~/.zshrc生效）
+
+##### 3.2 编辑~/.claude.json 添加：
+（可能需要启动一下claude 它才会创建这个文件）
 ```json
 "hasCompletedOnboarding": true,
 ```
 
 ##### 3.3 使用
-
-终端输入claude 或者 vscode 安装插件打开
+终端进入代码文件夹然后输入claude 或者 vscode 安装claude code插件打开
 
 ### 二、Skill & subagents
 
