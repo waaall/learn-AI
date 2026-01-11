@@ -32,7 +32,7 @@ irm https://claude.ai/install.ps1 | iex
 
 无法自动更新，记得npm更新
 ```bash
-# npm con
+npm config set registry https://registry.npmmirror.com
 npm install -g @anthropic-ai/claude-code
 ```
 
