@@ -138,10 +138,57 @@ SHARP 已经过三代演进：第一代针对 MPI 小消息，在 100Gb EDR IB �
 **性能与成本优势**：华为声称 UB-Mesh 架构可在规模增加时实现亚线性的成本增长，相比传统互连在数万节点时互连成本甚至高过计算芯片本身，UB 能将成本曲线压平。
 例如在 8192 节点规模下结合 Clos+Mesh 拓扑验证了方案的可行性和经济性。
 
-**开放生态**：灵衢 UnifiedBus 被视为华为对标国际开放标准（如 UALink、Ultra Ethernet）的自主方案。值得一提的是，华为已在 2025 年 Huawei Connect 大会上公布了 UnifiedBus 2.0 的技术规范，并计划将 UB 协议开源免费提供给业界。
-Huawei 表示希望行业伙伴采用该协议开发产品，共建开放生态[华为发布全球最强算力超节点和集群](https://www.huawei.com/cn/news/2025/9/hc-lingqu-ai-superpod)。UB-Mesh 旨在替代 PCIe、CXL、以太网/IP 等各种总线协议，实现**"数据中心级统一互连"**[Huawei to open-source its UB-Mesh data center-scale interconnect](https://www.tomshardware.com/tech-industry/artificial-intelligence/huawei-to-open-source-its-ub-mesh-data-center-scale-interconnect-soon-details-technical-aspects-one-interconnect-to-rule-them-all-is-designed-to-replace-everything-from-pcie-to-tcp-ip)。Forrester 等分析指出，UB 的目标是超过现有 NVLink 及以太RoCE网络的扩展能力，为未来 AI 基础设施提供一个中国自研的标准[forrester.com](https://forrester.com)[forrester.com](https://forrester.com)。
-总体而言，华为灵衢架构代表了一种激进的技术路径：通过统一通信协议和超高速链路，打破传统节点边界，将 AI 集群真正提升到Pod/数据中心级别的统一算力池。
-目前这套方案仍在推动中，其能否被更广泛采用或标准化还有待观察[Huawei to open-source its UB-Mesh data center-scale interconnect](https://www.tomshardware.com/tech-industry/artificial-intelligence/huawei-to-open-source-its-ub-mesh-data-center-scale-interconnect-soon-details-technical-aspects-one-interconnect-to-rule-them-all-is-designed-to-replace-everything-from-pcie-to-tcp-ip)。
+
+### 与 NVLink/NVSwitch 的目标边界不同
+
+#### NVLink/NVSwitch 的强项与边界
+
+NVLink/NVSwitch 典型是为 加速器域的 scale-up 服务：把一组 GPU（乃至整机架 NVL72 这种规模）做成高带宽、低延迟、全互联（all-to-all）的通信域，用于张量并行/流水并行/专家并行等训练通信热点。
+
+从 NVIDIA 官方页面与 NVL72 产品页信息看，Vera Rubin NVL72 以 NVLink 6 Switch 提供每 GPU 3.6 TB/s 的 scale-up 带宽，并给出 单机架 260 TB/s 级的 GPU 互联带宽表述。
+
+Tom’s Hardware 对 CES 2026 报道也复述了 NVLink 6 与 260 TB/s 机架级互联的关键信息（并给出发售节奏等）。
+
+但 NVLink 的“边界”也很清晰：它主要解决加速器域的 scale-up，把跨节点/跨机架的 scale-out 仍交给 InfiniBand/以太网等网络体系（或至少是另一套网络/交换域），因此系统往往天然是“两张网/两套域”的组合。
+
+#### UB-Mesh 的“野心”更像“把两张网合成一张”
+
+Tom’s Hardware 对 Hot Chips 2025 的报道写得很直白：UB-Mesh 试图用“一种互联协议”覆盖 节点内与节点间，并提到华为计划对外开放该协议供免费使用。
+
+这意味着 UB 的发力点不止是“让 NPU 之间更快”，而是希望减少“节点内总线 + 节点间网络”的语义裂缝与协议转换成本。
+
+一个很现实的推论是：UB 真正的难点不在“把带宽做高”，而在于把一致性、可靠性、容错、运维分域、升级演进等数据中心级问题纳入同一互联体系里。openEuler 的 UB Service Core 白皮书之所以强调控制面、资源池化、HA，就是在补这部分系统工程。
+
+### 与 CXL 的关键差异：同为“内存语义”，但出发点不同
+
+#### CXL 的设计中心是“主机扩展与组合式资源”
+
+CXL 从一开始的主战场就是 CPU ↔ 设备/内存 的一致性访问与内存扩展，基于 PCIe 物理层演进；到了 3.x，进一步强调交换与更复杂拓扑，并把设备间 P2P 纳入能力边界。CXL 联盟 2025 年的 3.x 介绍材料明确提到 CXL 3.0/3.1 的 P2P 通信能力（含 CXL.mem 方向的增强）。
+
+换句话说，CXL 更像是在标准化“可组合系统”的底座：内存池、设备池、主机间共享资源等。
+
+#### UB 更像把“内存语义”推到超节点乃至数据中心互联
+
+华为公开稿件把 UB 描述为面向 SuperPoD 的互联协议，并希望形成开放生态。
+
+而 Tom’s Hardware 的 UB-Mesh 报道把它描述为意图替代从 PCIe 到 TCP/IP 的多种互联形态，强调“统一互联”的覆盖面。
+
+因此两者虽然都触及“内存语义/一致性”这类关键词，但在系统分工上差异很大：
+
+- CXL 更偏“主机中心”的扩展与池化（尤其在服务器/机箱/机架内的组合式架构）。
+- UB 更偏“把超节点内与节点间互联统一起来”，把“互联域”从单机/机箱扩大到更大规模的计算域（至少在目标叙事上如此）。
+
+这几套标准/联盟的共同点是：都曾尝试解决“缓存一致/内存语义互联”的一部分拼图，但产业最终明显向 CXL 收敛。NextPlatform 在 2021 年的文章就讨论了 Gen-Z 向 CXL 的整合趋势与“互联战略收敛”。
+
+一些 EDA/验证领域的行业文章也提到 OpenCAPI、Gen-Z 等资产向 CXL 方向转移、CXL 3.0 成为焦点。
+
+|维度|华为 UnifiedBus / UB-Mesh|NVIDIA NVLink/NVSwitch（以 NVL72 为代表）|CXL 3.x（含 fabric / P2P）|
+|---|---|---|---|
+|首要目标|试图统一节点内与节点间互联，并配套系统软件/资源池化|加速器域极致 scale-up（GPU 全互联通信域）|主机与设备/内存的一致性互联，面向组合式资源与内存池|
+|互联域边界|叙事上覆盖超节点到更大互联域；落地依赖系统软件与生态推进|以 NVLink 域为核心，scale-out 仍需网络体系配合|以 PCIe/CXL 拓扑为核心，强调交换、P2P、内存共享能力|
+|带宽侧重点|更像“全栈统一”而非单点带宽竞赛（公开信息更多在体系与规范）|NVLink 6：每 GPU 3.6 TB/s；机架域 260 TB/s 级|更关注一致性语义、共享与拓扑扩展；带宽受 PCIe/CXL 代际与实现影响|
+|开放性|规范发布与系统软件（openEuler）开源在推进中|互联技术体系高度 NVIDIA 化（生态强但锁定更强）|联盟标准、跨厂商，开放生态清晰|
+
 
 ---
 
@@ -160,6 +207,9 @@ Huawei 表示希望行业伙伴采用该协议开发产品，共建开放生态[
 11. NextPlatform – CXL Absorbs Gen-Z (2021) – Gen-Z 联盟解散并入 CXL，业界内存语义标准加速收敛到单一协议；CXL 成为连接 CPU-加速器和远程内存的首选[Compute_Express_Link-wikipedia](https://en.wikipedia.org/wiki/Compute_Express_Link)。
 12. Blocks & Files – CXL 3.0 Memory Pooling (2024) – CXL 3.0/3.1 引入交换式 fabric，实现多主机共享外部内存池，缓存一致，支持大规模内存池化[Hundreds of servers could share external memory pools across Panmnesia CXL fabric](https://blocksandfiles.com/2024/08/01/panmnesia-cxl-fabric/)。
 13. Huawei Press Release – Huawei Unveils UnifiedBus for SuperPods (HC2025) – 华为发布灵衢 (UnifiedBus) 协议，克服现有光电互连物理限制，实现超级节点统一互连，并开放 UB2.0 规范[华为发布全球最强算力超节点和集群](https://www.huawei.com/cn/news/2025/9/hc-lingqu-ai-superpod)。
-14. Tom's Hardware – Huawei UB-Mesh Interconnect Details (Aug 2025) – 华为 UB-Mesh 技术细节：旨在统一替代 PCIe/CXL/NVLink/TCPIP，全局负载存储语义，支持百万级处理器，单芯片带宽1.25TB/s，150ns级延迟[Huawei to open-source its UB-Mesh data center-scale interconnect](https://www.tomshardware.com/tech-industry/artificial-intelligence/huawei-to-open-source-its-ub-mesh-data-center-scale-interconnect-soon-details-technical-aspects-one-interconnect-to-rule-them-all-is-designed-to-replace-everything-from-pcie-to-tcp-ip)。
-15. NVIDIA Developer Blog – Advancing Performance with SHARP (2024) – NVIDIA SHARP 将 All-Reduce/广播等集体通信从服务器卸载到 InfiniBand 交换机执行，在网内完成规约运算，减少一半数据传输并降低延迟[Advancing Performance with NVIDIA SHARP In-Network Computing](https://developer.nvidia.com/blog/advancing-performance-with-nvidia-sharp-in-network-computing/)。
-16. [Slingshot](https://www.glennklockwood.com/garden/Slingshot)
+14. [UB Service Core](https://www.openeuler.org/zh/projects/ub-service-core/)
+15. [UnifiedBus](https://www.unifiedbus.com/zh)
+16. Tom's Hardware – Huawei UB-Mesh Interconnect Details (Aug 2025) – 华为 UB-Mesh 技术细节：旨在统一替代 PCIe/CXL/NVLink/TCPIP，全局负载存储语义，支持百万级处理器，单芯片带宽1.25TB/s，150ns级延迟[Huawei to open-source its UB-Mesh data center-scale interconnect](https://www.tomshardware.com/tech-industry/artificial-intelligence/huawei-to-open-source-its-ub-mesh-data-center-scale-interconnect-soon-details-technical-aspects-one-interconnect-to-rule-them-all-is-designed-to-replace-everything-from-pcie-to-tcp-ip)。
+17. NVIDIA Developer Blog – Advancing Performance with SHARP (2024) – NVIDIA SHARP 将 All-Reduce/广播等集体通信从服务器卸载到 InfiniBand 交换机执行，在网内完成规约运算，减少一半数据传输并降低延迟[Advancing Performance with NVIDIA SHARP In-Network Computing](https://developer.nvidia.com/blog/advancing-performance-with-nvidia-sharp-in-network-computing/)。
+18. [Slingshot](https://www.glennklockwood.com/garden/Slingshot)
+
