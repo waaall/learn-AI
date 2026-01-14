@@ -1,5 +1,11 @@
 
-# 系统提示词(System Prompts)
+# vibe coding
+
+- [鱼皮 vibe coding 教程](https://github.com/liyupi/ai-guide)
+
+这个链接是给新手的教程，写的很详细，值得学习参考。
+
+## 系统提示词(System Prompts)
 
 - [system-prompts-of-ai-tools](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools/tree/main)
 
