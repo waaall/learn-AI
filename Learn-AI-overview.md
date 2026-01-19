@@ -141,7 +141,7 @@
 - **开源与闭源竞争**：Stable Diffusion 3 试图在质量上追赶 DALL·E 3，而闭源模型强化安全与易用性。
 - **垂直领域优化**：电商、医疗、教育等场景定制化模型将爆发。
 ### Stable Diffusion
-![SD-develop-timeline](SD-develop-timeline.jpg)
+![SD-develop-timeline](./scripts/assets/SD-develop-timeline.jpg)
 - SD1.5: 
 - SDXL: 
 - SD3.5: 
@@ -203,7 +203,7 @@ cuDNN（CUDA Deep Neural Network Library）：专门为深度神经网络优化�
     - 提供 Winograd 等加速算法
 - [cudnn-support-matrix](https://docs.nvidia.com/deeplearning/cudnn/frontend/v1.14.0/reference/support-matrix.html#support-matrix)（和cuda、nvidia driver的兼容性）
 - [What is the CUDA Software Platform?](https://modal.com/gpu-glossary/host-software/cuda-software-platform)
-![/light-cuda-toolkit](learn-AI.assets/light-cuda-toolkit.svg)
+![light-cuda-toolkit](./scripts/assets/light-cuda-toolkit.svg)
 - [# 显卡，显卡驱动,nvcc, cuda driver,cudatoolkit,cudnn到底是什么？](https://www.cnblogs.com/marsggbo/p/11838823.html)
 pytorch 安装cuda版会自带安装cuda&cudnn的动态库，而如果只是使用whisper这种机遇pytorch的，就不用安装，但是如果编译whisper.cppCUDA版这种，就需要安装官方支持。
 ### 版本
@@ -244,9 +244,6 @@ pytorch显示没有GPU占用---nvidia-smi和windows10的任务管理器都有统
 
 ### tensorflow和cuda的兼容性
 - [tensorflow和cuda的兼容性](https://www.tensorflow.org/install/source#gpu)
-
-
-
 
 # RAG
 
@@ -990,7 +987,7 @@ MCP 的强大之处在于能把资源暴露给任意支持 MCP 的客户端，�
 - [ascend gitee 仓库](https://gitee.com/ascend)
 	- [torch-npu](https://gitee.com/ascend/pytorch)
 
-![](learn-AI.assets/华为NPU框架.png)
+![](./scripts/assets/华为NPU框架.png)
 
 CANN（Compute Architecture for Neural Networks）是华为为昇腾（Ascend）AI处理器打造的**全栈软件平台和异构计算架构**。它的核心使命是充分发挥昇腾AI处理器的强大算力，简化AI应用开发与部署，并充当上层深度学习框架（如TensorFlow, PyTorch, MindSpore）与底层昇腾硬件之间的“桥梁”。
 
@@ -1112,7 +1109,7 @@ return io_binding.get_outputs()[0].numpy()
 
 docker不依赖宿主机的cuda，但却依赖宿主机的显卡驱动。另外，docker 运行还需要安装[Nvidia Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)(win需要wsl2安装后额外配置，下文介绍)；且docker run 指定gpu。
 
-![wsl-cuda](learn-AI.assets/wsl-cuda.png)
+![wsl-cuda](./scripts/assets/wsl-cuda.png)
 ### docker cuda 支持
 
 #### 1. [Nvidia Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)

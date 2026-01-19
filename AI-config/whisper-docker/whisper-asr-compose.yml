@@ -1,0 +1,33 @@
+services:
+  stt:
+    image: onerahmet/openai-whisper-asr-webservice:latest-gpu
+    container_name: whisper-asr
+    ports:
+      - "9000:9000"
+    environment:
+      ASR_ENGINE: "faster_whisper"
+
+      # 把 ASR_MODEL 指向容器内的“模型目录”
+      ASR_MODEL: "/models/faster-whisper-large-v3-turbo-int8-ct2"
+
+      # GPU + 量化
+      ASR_DEVICE: "cuda"
+      ASR_QUANTIZATION: "int8"
+
+      # 可选
+      SAMPLE_RATE: "16000"
+      MODEL_IDLE_TIMEOUT: "0"  # 0 = 常驻；也可以改成 300 之类让它空闲卸载
+
+    volumes:
+      # 把本地下载好的目录挂载到容器内
+      - "D:/dev_software/AI_models/whisper/faster-whisper-large-v3-turbo-int8-ct2:/models/faster-whisper-large-v3-turbo-int8-ct2:ro"
+
+    restart: unless-stopped
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
