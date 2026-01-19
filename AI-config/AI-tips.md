@@ -285,6 +285,63 @@ Plugin 是 **一个可安装/分享的扩展包**，里面可以打包很多东�
 - 把这些东西打成一个团队内部 Plugin。
 - 放进自建的 plugin marketplace，团队新人只要执行一行命令就能装上。
 
+
+## opencode
+
+- [opencode doc](https://opencode.ai/docs)
+- [opencode github](https://github.com/anomalyco/opencode)
+
+```bash
+# 通用推荐安装
+curl -fsSL https://opencode.ai/install | bash
+
+# mac推荐安装
+brew install anomalyco/tap/opencode
+
+# windows 推荐安装
+choco install opencode
+
+# npm 安装
+npm install -g opencode-ai
+```
+### oh-my-opencode
+- [oh-my-opencode github](https://github.com/code-yeongyu/oh-my-opencode)
+```bash
+# 三种安装方法都可以
+
+# npx oh-my-opencode install
+# bunx oh-my-opencode install
+npm install -g oh-my-opencode
+```
+
+#### 配置 oh-my-opencode
+
+```bash
+vim ~/.config/opencode/oh-my-opencode.json
+```
+然后加入如下内容
+```json
+{
+  "agents": {
+    "planner-sisyphus": {
+      "enabled": true,
+      "replace_plan": true
+    }
+  }
+}
+```
+
+### 配置model
+
+```bash
+opencode
+
+# 进入opencode后，
+/connect
+# 输入api key, 选择模型供应商和模型
+```
+
+
 ## MCP
 
 有一些常用的 mcp server
