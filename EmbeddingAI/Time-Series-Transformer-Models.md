@@ -3,8 +3,6 @@
 - [thuml/sundial-base-128m](https://huggingface.co/thuml/sundial-base-128m)
 - [Salesforce/moirai-2.0-R-small](https://huggingface.co/Salesforce/moirai-2.0-R-small)
 
-
-
 # 时间序列基础模型概述
 
 随着**基础模型**（Foundation Model）的兴起，时间序列预测领域也涌现出一批大规模预训练模型。这些模型通过在海量多领域时序数据上一次性预训练，实现了**零样本预测**能力，可在无需针对特定任务微调的情况下直接对新数据进行预测 。相比传统的统计模型（每个序列单独拟合）或早期深度学习模型（针对单一数据集训练），时序基础模型具备更强的泛化能力，能够跨**不同行业场景**（如金融、能源、云计算指标、零售需求等）直接应用 。本文将重点分析亚马逊的 Chronos-2、清华大学 THUML 实验室的 Sundial，以及 Salesforce 研究院的 Moirai 2.0 三个代表性时序大模型，并对比它们的架构设计、创新点、应用场景、开源情况和性能表现。同时，我们也简要介绍其他主流的时序基础模型以提供对比背景。
