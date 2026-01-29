@@ -1,7 +1,7 @@
 
 ## VLLM 部署 VLM
 
-
+- [Qwen3-VL-8B-Instruct-FP8 模型](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-FP8)
 - [Qwen3-VL-30B-AWQ-4bit量化模型](https://huggingface.co/cyankiwi/Qwen3-VL-30B-A3B-Instruct-AWQ-4bit)
 
 ### 模型下载
@@ -11,7 +11,10 @@
 pip install huggingface_hub
 
 # 可选 HF-mirror
-hf download cyankiwi/Qwen3-VL-30B-A3B-Instruct-AWQ-4bit --local-dir D:/dev_software/AI_models/huggingface/Qwen3-VL-30B-A3B-Instruct-AWQ-4bit
+hf download Qwen/Qwen3-VL-8B-Instruct-FP8 --local-dir D:/dev_software/AI_models/huggingface/Qwen3-VL-8B-Instruct-FP8
+
+#hf download cyankiwi/Qwen3-VL-30B-A3B-Instruct-AWQ-4bit --local-dir D:/dev_software/AI_models/huggingface/Qwen3-VL-30B-A3B-Instruct-AWQ-4bit
+
 
 # 如果无法下载可能需要登陆和授权问题
 hf auth login
@@ -31,7 +34,7 @@ docker 部署具体见
 curl -X POST "http://localhost:8124/v1/chat/completions" \
 	-H "Content-Type: application/json" \
 	--data '{
-		"model": "Qwen3-VL-30B-A3B-Instruct-AWQ-4bit",
+		"model": "Qwen3-VL-8B-Instruct-FP8",
 		"messages": [
 			{
 				"role": "user",
