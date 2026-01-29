@@ -1,0 +1,51 @@
+services:
+  vllm:
+    image: vllm/vllm-openai:v0.12.0
+    container_name: vllm-qwen3vl-4090-awq
+    ports:
+      - "8124:8000"
+    volumes:
+      - "D:/dev_software/AI_models/huggingface/Qwen3-VL-30B-A3B-Instruct-AWQ-4bit:/models/qwen3vl-awq:ro"
+      # # 可选：挂 HuggingFace cache（避免容器内重复下载 tokenizer/依赖）
+      # - "D:/dev_software/AI_models/huggingface/_cache:/root/.cache/huggingface"
+    gpus: all
+    ipc: host
+    shm_size: "16gb"
+    environment:
+      - TZ=Asia/Shanghai
+    command:
+      # 基础
+      - "/models/qwen3vl-awq"
+      - "--served-model-name"
+      - "Qwen3-VL-30B-A3B-Instruct-AWQ-4bit"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8000"
+      - "--override-generation-config"
+      - '{"temperature":0.2,"top_p":0.9}'
+
+      # 工具调用
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser"
+      - "hermes"
+
+      # RAG + 并发
+      - "--max-model-len"
+      - "8192"
+      - "--max-num-seqs"
+      - "2"
+      # 让一次迭代能吃下更多并发的 prefill（配合 chunked prefill）
+      - "--max-num-batched-tokens"
+      - "16384"
+      - "--enable-prefix-caching"
+      - "--enable-chunked-prefill"
+
+      # 显存上限(预留避免OOM)
+      - "--gpu-memory-utilization"
+      - "0.85"
+
+      # # 日志（可选，降低开销）
+      # - "--uvicorn-log-level"
+      # - "warning"
+      # - "--disable-log-requests"
