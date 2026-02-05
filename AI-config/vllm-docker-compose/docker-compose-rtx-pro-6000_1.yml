@@ -4,6 +4,7 @@ services:
     container_name: vllm-qwen3next-80b
     ports:
       - "8123:8000"
+    restart: always
     volumes:
       - "D:/dev_software/AI_models/huggingface/Qwen3-Next-80B-A3B-Instruct-FP8:/models/Qwen3-Next-80B-A3B-Instruct-FP8:ro"
       # # 可选：挂 HuggingFace cache（避免容器内重复下载 tokenizer/依赖）

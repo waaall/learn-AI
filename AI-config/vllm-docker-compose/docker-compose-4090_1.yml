@@ -4,6 +4,7 @@ services:
     container_name: vllm-qwen3-4090-awq
     ports:
       - "8123:8000"
+    restart: always
     volumes:
       - "D:/dev_software/AI_models/huggingface/Qwen3-30B-A3B-AWQ-4bit:/models/qwen3-awq:ro"
       # # 可选：挂 HuggingFace cache（避免容器内重复下载 tokenizer/依赖）

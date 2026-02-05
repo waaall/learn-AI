@@ -356,3 +356,20 @@ claude mcp add --transport stdio context7 -- context7-mcp
 
 # 使用 context7 mcp 查询 ** 最新文档, 写 **
 ```
+
+
+## Skills
+
+- [skills](https://skills.sh)
+### remotion skill
+
+```bash
+npx skills add https://github.com/remotion-dev/skills --skill remotion-best-practices
+
+# 在想创建项目文件夹的父目录
+cd ~/Downloads
+
+npx create-video@latest
+
+# 之前创建skill了就不需要再创建了，然后进入项目文件夹
+```
