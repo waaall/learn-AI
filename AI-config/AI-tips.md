@@ -373,3 +373,12 @@ npx create-video@latest
 
 # 之前创建skill了就不需要再创建了，然后进入项目文件夹
 ```
+
+### office skill
+
+```bash
+npx skills add https://github.com/anthropics/skills --skill pdf
+npx skills add https://github.com/anthropics/skills --skill pptx
+npx skills add https://github.com/anthropics/skills --skill xlsx
+npx skills add https://github.com/anthropics/skills --skill docx
+```
