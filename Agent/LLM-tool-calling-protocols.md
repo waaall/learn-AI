@@ -34,7 +34,8 @@ OpenAI 把每个工具放在 `tools[]` 数组里，使用 `type: "function"`，�
 }
 ```
 
-工具结果通过专用 `role: "tool"` 消息返回，并引用 `tool_call_id`。OpenAI 默认支持**并行工具调用**，即模型可同时在 `tool_calls` 数组中返回多个调用。设置 `strict: true` 会启用受约束解码，在推理时用 token 级语法约束保证**100% 符合 JSON Schema**。
+工具结果通过专用 `role: "tool"` 消息返回，并引用 `tool_call_id`。OpenAI 默认支持**并行工具调用**，即模型可同时在 `tool_calls` 数组中返回多个调用。设置 `strict: true` 会启用受约束解码，在推理时用 token 级语法约束显著提升 JSON Schema 符合性。
+来源：[OpenAI Function Calling 指南](https://developers.openai.com/api/docs/guides/function-calling/) [OpenAI Structured Outputs](https://openai.com/index/introducing-structured-outputs-in-the-api/)
 
 ### Anthropic 的内容块架构
 
@@ -53,10 +54,13 @@ Anthropic 采用结构上不同的方式。工具定义使用 `input_schema`（�
 ```
 
 关键差异在于：工具结果是放在 **`user` 消息**中的 `tool_result` 内容块，而不是单独角色。这意味着 `tool_result` 必须紧跟包含对应 `tool_use` 的 assistant 消息。Anthropic 还提供独特能力：**编程式工具调用**（Claude 编写 Python 编排代码，而不是逐轮串行往返，可将 token 降低 **37%**）、用于从大规模工具库动态发现工具的**tool search tool**（上下文从约 55K 降至约 500 token），以及 `web_search`、`text_editor`、`bash` 等服务端工具。
+来源：[Anthropic Tool Use 文档](https://platform.claude.com/docs/en/agents-and-tools/tool-use/implement-tool-use) [Anthropic Advanced Tool Use](https://www.anthropic.com/engineering/advanced-tool-use)
 
 ### Google Gemini 的函数声明
 
-Gemini 在工具中使用 `functionDeclarations`，schema 与 OpenAPI 3.0 兼容。工具调用以 `functionCall` 对象出现在 `content.parts` 中，结果以 `functionResponse` part 返回。Gemini 每次请求最多支持 **128 个函数声明**，支持组合/顺序调用（在一次推理中链式执行 `get_location()` -> `get_weather(location)`），并支持通过带 JSONPath 引用的 `partialArgs` 流式传输函数参数。
+Gemini 在工具中使用 `functionDeclarations`，schema 与 OpenAPI 兼容。工具调用以 `functionCall` 对象出现在 `content.parts` 中，结果以 `functionResponse` part 返回。Gemini 每次请求最多支持 **128 个函数声明**，支持组合/顺序调用（在一次推理中链式执行 `get_location()` -> `get_weather(location)`）。
+校准说明：原文中的 `partialArgs` / JSONPath 增量参数拼装，在官方公开文档中未见稳定字段约定，建议按“函数调用 + 结果回传”的通用模式实现。
+来源：[Gemini Function Calling](https://ai.google.dev/gemini-api/docs/function-calling) [Vertex Function Calling（128 上限）](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/model-reference/function-calling)
 
 ### 关键差异
 
@@ -81,6 +85,7 @@ Gemini 在工具中使用 `functionDeclarations`，schema 与 OpenAPI 3.0 兼容
 当前 SOTA 方案（xLAM 2、NexusRaven 等）采用合成数据流水线：从代码语料提取函数定义；让 LLM 生成会触发这些函数的自然语言查询；加入无关“干扰函数”做判别训练；通过多阶段 LLM 校验和有用性指标筛选；加入推理步骤（CoT、ReAct）；再在增强语料上微调。开源模型通常使用**特殊 token**标记工具调用片段：Mistral 用 `[TOOL_CALLS]` 和 `[AVAILABLE_TOOLS]`，Hermes 用 `<tool_call>` 和 `<tool_response>`。
 
 在推理阶段保证 schema 一致性时，**受约束解码**（如 OpenAI Structured Outputs）会在每一步生成时跟踪 JSON Schema 允许的 token，并在采样前屏蔽无效 token。相比无约束生成约 86% 的匹配率，该方法可实现完美 schema 匹配。
+来源：[Toolformer 论文](https://arxiv.org/abs/2302.04761) [xLAM 论文](https://arxiv.org/abs/2409.03215) [OpenAI Structured Outputs](https://openai.com/index/introducing-structured-outputs-in-the-api/)
 
 -----
 
@@ -110,6 +115,7 @@ const weatherTool = tool({
 ```
 
 `execute` 函数会接收第二个上下文参数，包括 `toolCallId`、`messages`（到该步为止的对话历史）、用于取消的 `abortSignal`，以及可携带任意数据的 `experimental_context`。`execute` 是**可选的**：省略它表示该工具应在客户端执行或由外部队列处理。AI SDK 5 还把 `parameters` 更名为 `inputSchema`，把 `result` 更名为 `output`，以对齐 MCP 规范。
+来源：[AI SDK Tools and Tool Calling](https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling) [AI SDK 5 发布说明](https://vercel.com/blog/ai-sdk-5)
 
 ### 多步 Agent 循环
 
@@ -135,6 +141,7 @@ prepareStep: async ({ stepNumber, messages }) => {
   return {};
 },
 ```
+来源：[AI SDK Loop Control](https://ai-sdk.dev/docs/agents/loop-control) [AI SDK 6 迁移指南](https://ai-sdk.dev/docs/migration-guides/migration-guide-6-0)
 
 ### 四种 toolChoice 策略
 
@@ -160,6 +167,7 @@ const dangerousTool = tool({
 `ToolLoopAgent` 类把完整 Agent 模式（模型、指令、工具、循环配置）封装为可复用、类型安全对象，提供 `generate()` 和 `stream()` 方法。默认 `stopWhen: stepCountIs(20)`，并支持 `callOptionsSchema` 做运行时配置。
 
 **编程式工具调用**（Anthropic）允许 Claude 在代码执行环境中调用工具，把中间结果移出上下文。`@ai-sdk/mcp` 中的 MCP 支持已稳定，涵盖 OAuth 认证、resources、prompts 与 elicitation。
+来源：[AI SDK Tools and Tool Calling](https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling) [AI SDK MCP Tools](https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools)
 
 ### 流式传输线协议
 
@@ -176,12 +184,14 @@ const dangerousTool = tool({
 OpenCode（anomalyco/opencode）是基于 Go 的 Agent 编码工具，内置 **15+ 工具**：`bash`、`edit`（搜索/替换）、`write`、`read`、`grep`（基于 ripgrep）、`glob`、`list`、`patch`、LSP 操作、用于任务跟踪的 `todowrite`/`todoread`、`webfetch`/`websearch`，以及用于澄清需求的 `question`。工具遵循**权限模型**：每个工具可设为 `allow`、`deny` 或 `ask`（需审批），并支持 MCP 工具通配符。
 
 自定义工具通过 TypeScript 文件定义，借助 `@opencode-ai/plugin` 的 `tool()` 和 Zod schema。文件名即工具名，`execute` 可获得丰富上下文，如 `agent`、`sessionID`、`directory`、`worktree`。OpenCode 把 MCP server 作为一等扩展机制，也支持 ACP（Agent Communication Protocol）。其**技能系统**（可加载的 `SKILL.md`）用于注入领域上下文，本质上更像基于提示词的元工具，而非可执行函数。
+来源：[OpenCode Tools](https://opencode.ai/docs/tools/) [OpenCode Permissions](https://opencode.ai/docs/permissions/) [OpenCode Custom Tools](https://opencode.ai/docs/custom-tools/) [OpenCode Modes](https://opencode.ai/docs/modes/)
 
 ### Claude Code 借助 Anthropic 原生能力
 
 Claude Code 的架构与 Anthropic API 的内容块模型高度一致。Claude Agent SDK 通过 MCP server 暴露工具，定义使用 Zod schema，执行返回 `{content: [{type: "text", text: "..."}]}`。内置工具包括 `Read`、`Write`、`Edit`、`Bash`、`Glob`、`Grep`、`WebFetch`、`WebSearch` 和 `Task`（用于派生子代理）。
 
 SDK 管理完整循环：LLM 调用 -> `tool_use` stop reason -> 执行 -> 回传结果 -> 重复，直到 `end_turn`。五类 Agent 分工明确：通用（全权限）、Explore（只读检索代码库）、Plan（架构规划）、claude-code-guide（文档）、statusline-setup（专项）。**Hooks**（`PreToolUse`/`PostToolUse`）支持确定性处理，例如拦截危险 bash 命令、改写输出或记录调用日志用于审计。
+来源：[Claude Code Overview](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview)
 
 ### Aider 有意拒绝结构化工具调用
 
@@ -250,6 +260,7 @@ SQL Agent 工具可把自然语言转成经过校验的查询。典型模式是�
 ### 对敏感操作做人在环审批
 
 处理破坏性操作、金融交易或配置变更的生产系统需要审批闸门。常见模式是识别关键动作、通过中断机制暂停执行、向审核者展示摘要上下文（而非原始 JSON），并记录每次决策用于审计。LangGraph 用 `interrupt()` 实现，Vercel AI SDK 用 `needsApproval`，OpenCode 用权限策略，三者都收敛到同一架构原则。
+来源：[AI SDK Tools and Tool Calling](https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling) [OpenCode Permissions](https://opencode.ai/docs/permissions/)
 
 -----
 
@@ -257,7 +268,7 @@ SQL Agent 工具可把自然语言转成经过校验的查询。典型模式是�
 
 制造和流程工业正成为工具调用的新前沿。LLM 位于 PLC、SCADA、DCS、ERP、MES 系统**上层**，负责编排、规划、解释，而安全关键的确定性控制环仍由 PLC 负责。LLM 不应直接控制执行器。
 
-当前工业场景大致沿成熟度演进：**阶段 1**（只读）由 LLM 回答历史传感器数据问题；**阶段 2**（分析）加入 CMMS 与维护系统的自然语言接口；**阶段 3**（草拟动作）由 LLM 生成需人工审批的工单；**阶段 4**（主动）在校验层保护下允许自治动作。研究显示，在 CNC 机床编程场景，GPT-4 在 2 步流程上达到 **100% 成功率**，在 4 步流程上达到 **86%**。
+当前工业场景大致沿成熟度演进：**阶段 1**（只读）由 LLM 回答历史传感器数据问题；**阶段 2**（分析）加入 CMMS 与维护系统的自然语言接口；**阶段 3**（草拟动作）由 LLM 生成需人工审批的工单；**阶段 4**（主动）在校验层保护下允许自治动作。研究里常见“多步骤任务成功率”表述，但具体百分比应以对应论文/报告原文为准。
 
 工业自动化中的工具调用实现可定义如 `read_sensor_data(sensor_id, time_range)`、`query_alarm_history(equipment_id)`、`generate_work_order(description, priority, equipment)`、`lookup_maintenance_manual(equipment_model, section)` 等工具。关键安全约束是：**所有写操作都必须人工审批**，且生成的控制代码执行前必须经过确定性验证。在任务关键环境中，幻觉风险决定了强健校验层不可妥协。
 
@@ -268,6 +279,7 @@ SQL Agent 工具可把自然语言转成经过校验的查询。典型模式是�
 **Model Context Protocol（MCP）** 由 Anthropic 于 2024 年 11 月发布，已迅速成为工具集成的事实标准，常被称为“AI 领域的 USB-C”。它通过 JSON-RPC 2.0（支持 stdio、Server-Sent Events、Streamable HTTP 等传输）标准化了 LLM 应用发现和调用外部工具的方式。
 
 MCP 工具由 `name`、`description`、`inputSchema`（JSON Schema）定义。客户端通过 `tools/list` 发现工具，通过 `tools/call` 调用工具。协议定义了三类原语：**tools**（模型控制）、**resources**（应用控制）、**prompts**（用户控制）。目前生态已覆盖 Claude Code、OpenCode、Continue.dev、Cursor、Windsurf、OpenAI Agents SDK、Vercel AI SDK、LangChain，以及数千个社区 MCP server。
+来源：[Anthropic MCP 发布](https://www.anthropic.com/news/model-context-protocol) [MCP Architecture](https://modelcontextprotocol.io/docs/learn/architecture)
 
 其意义在于架构解耦：MCP 让 Agent 不再绑定固定工具集。Agent 可在运行时查询 MCP server 动态发现可用工具，无需改代码即可实现即插即用扩展。再结合编程式工具调用（模型通过写代码编排 MCP 工具），可形成可组合、可扩展到数百集成的工具生态。
 
