@@ -382,3 +382,70 @@ npx skills add https://github.com/anthropics/skills --skill pptx
 npx skills add https://github.com/anthropics/skills --skill xlsx
 npx skills add https://github.com/anthropics/skills --skill docx
 ```
+
+
+## deer-flow
+
+### 部署
+
+1. **Clone the DeerFlow repository**
+```bash
+git clone https://github.com/bytedance/deer-flow.git
+cd deer-flow
+```
+
+2. **Generate local configuration files**
+From the project root directory (`deer-flow/`), run:
+```bash
+make config
+```
+This command creates local configuration files based on the provided example templates.
+
+3. **Configure your preferred model(s)**
+Edit `config.yaml` and define at least one model:
+```yaml
+models:
+- name: gpt-4 # Internal identifier
+display_name: GPT-4 # Human-readable name
+use: langchain_openai:ChatOpenAI # LangChain class path
+model: gpt-4 # Model identifier for API
+api_key: $OPENAI_API_KEY # API key (recommended: use env var)
+max_tokens: 4096 # Maximum tokens per request
+temperature: 0.7 # Sampling temperature
+```
+
+4. **Set API keys for your configured model(s)**
+Choose one of the following methods:
+- Option A: Edit the `.env` file in the project root (Recommended)
+```bash
+TAVILY_API_KEY=your-tavily-api-key
+OPENAI_API_KEY=your-openai-api-key
+# Add other provider keys as needed
+```
+
+- Option B: Export environment variables in your shell
+```bash
+export OPENAI_API_KEY=your-openai-api-key
+```
+
+- Option C: Edit `config.yaml` directly (Not recommended for production)
+```yaml
+models:
+- name: gpt-4
+api_key: your-actual-api-key-here # Replace placeholder
+```
+
+5. **Initialize and start**(docker):
+```bash
+make docker-init # Pull sandbox image (Only once or when image updates)
+make docker-start # Start services (auto-detects sandbox mode from config.yaml)
+```
+### debug
+
+#### 查看详细日志
+```bash
+docker logs deer-flow-nginx --tail 100
+docker exec deer-flow-gateway sh -lc "tail -n 200 /app/logs/gateway.log"
+docker exec deer-flow-langgraph sh -lc "tail -n 200 /app/logs/langgraph.log"
+```
+
