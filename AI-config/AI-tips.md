@@ -2,6 +2,7 @@
 # vibe coding
 
 - [鱼皮 vibe coding 教程](https://github.com/liyupi/ai-guide)
+- [ai-agents-for-beginners](https://github.com/microsoft/ai-agents-for-beginners)
 
 这个链接是给新手的教程，写的很详细，值得学习参考。
 

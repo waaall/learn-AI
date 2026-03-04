@@ -1,5 +1,8 @@
 # 大语言模型训练全流程解析
 
+- [Andrej - Deep Dive into LLMs like ChatGPT](https://www.youtube.com/watch?v=7xTGNNLPyMI)
+- [microgpt](https://karpathy.github.io/2026/02/12/microgpt/)
+
 大语言模型的训练是一个精心设计的三阶段流程：**预训练**赋予模型基础语言能力，**监督微调**使其学会遵循指令，**RLHF**则让模型与人类偏好对齐。这一流程将”文本补全器”转变为真正有用的AI助手，其核心创新在于将不可微分的人类判断转化为可优化的信号。
 
 -----
@@ -140,13 +143,105 @@ DPO只需要2个模型（而非4个），训练更稳定，实现更简单，已
 # 基本概念
 
 
+## MoE和稠密模型
+
+### MoE 的核心目标与稠密模型的本质差异
+
+混合专家模型 Mixture-of-Experts（MoE）的核心动机是“条件计算”（conditional computation）：在不让每个 token 都经过完整参数集合的前提下，把模型总参数做得很大，从而把“容量”（capacity，能记住/表征的知识规模）与“计算量”（compute，每 token 的 FLOPs 与实际激活的矩阵乘）部分解耦。经典的稀疏门控 MoE 层（Sparsely-Gated MoE Layer）由大量专家子网络（experts）与一个可训练路由器/门控网络（router/gating network）组成，路由器对每个输入选择少量专家参与计算；这一方向在大规模集群上可把参数规模提升到远超“等计算量稠密网络”的水平，并报告了在现代硬件上保持较高计算效率的实现路径。[1](https://arxiv.org/abs/1701.06538)
+
+在 Transformer 语境下，“稠密模型”（dense Transformer）指每层的前馈网络 FFN/MLP 对所有 token 总是全量激活同一组权重；而主流 MoE-Transformer 的做法，是把标准 Transformer Block 中的 FFN 子层替换为“位置前馈 MoE”（position-wise MoE）：同一层有 E 个 FFN 专家，但对每个 token 只激活其中 K 个（通常 K=1 或 K=2），再按门控权重对专家输出做加权组合。GShard 的描述非常典型：将“每隔一层 FFN”替换为稀疏激活 MoE，并用 top-2 gating 使每个 token 最多路由到两个专家，同时把 MoE 层跨设备分片（sharding），而其它层多为复制或用并行策略切分。[2](https://openreview.net/pdf/cdb90e31da8446076492c5aef0c8c6ae35dd472a.pdf)
+
+区分 MoE 的两个“参数规模”指标非常关键：总参数（total/sparse parameters）与每 token 激活参数（activated/active parameters）。例如，GLaM 报告其最大模型总参数 1.2T，但每个 token 只激活约 96.6B 参数（约占总参数 8%），在训练能耗与推理 FLOPs 上给出相对稠密大模型更低的成本叙述；Mixtral 8×7B 也强调“每 token 只使用子集参数”，从而带来不同 batch 区间下的推理速度与吞吐优势。[3](https://arxiv.org/pdf/2112.06905)
+需要强调的是，“计算近似不随专家数线性增长”并不等于“系统成本不变”。MoE 在系统层引入了额外开销：路由器需要计算对 E 个专家的概率分布（其代价与 d_model×E 相关），更关键的是当专家被跨设备分片时，token 必须通过 all-to-all 等集体通信被“分发到正确的专家设备并再聚合回来”，这往往成为可扩展性瓶颈之一。[4](https://jmlr.org/papers/volume23/21-0998/21-0998.pdf)
+
+### MoE 结构设计空间：专家形态、插入位置与路由策略
+
+一个标准的 top-k MoE 层可用如下形式概括。对 token 表示 \(u_t\)，路由器产生每个专家的打分/logits \(x_{t,i}\)，经 softmax 得到门控权重 \(g_{t,i}\)，再选取权重最大的 K 个专家（top-k）。输出一般是残差形式：
+$$
+h_t = u_t + \sum_{i\in \text{TopK}(g_t)} g_{t,i}\,\text{FFN}_i(u_t)
+$$
+GShard 明确以“每 token 最多 2 个专家”为设计点；Switch Transformer 则把路由进一步简化为 top-1（每 token 只选 1 个专家）来降低通信和实现复杂度；而 Mixtral 与 GLaM 都采用每 token 选 2 个专家的思路，并强调在质量与效率之间的折中。[5](https://openreview.net/pdf/cdb90e31da8446076492c5aef0c8c6ae35dd472a.pdf)
+
+在路由策略上，需要区分两类范式。
+
+其一是“Token-Choice”（token 选专家）：每个 token 独立选择 top-k 专家。这是 Switch、GShard、Mixtral、GLaM 等路线中的主流范式，但它天然会遇到负载不均衡（load imbalance）与溢出（overflow）问题：热门专家接收 token 过多，冷门专家训练不足；同时，为了静态张量形状或显存上限，每个专家每 step 能处理 token 数存在上限（capacity），超出 capacity 的 token 可能被丢弃或旁路处理。相关工作指出，即便加入负载均衡辅助损失，早期训练阶段仍可能出现较高比例的“过载分配”，导致大量 token 被丢弃，进而影响收敛与样本效率。[6](https://papers.neurips.cc/paper_files/paper/2022/file/2f00ecd787b432c1d36f3de9800728eb-Paper-Conference.pdf)
+
+其二是“Expert-Choice”（专家选 token）：改为每个专家从所有 token 中选择自己最想处理的 top-k token，从机制上保证每个专家负载“按设计严格受控”，负载均衡不再主要依赖辅助损失系数的微妙调参。该路线还允许“每个 token 被选中专家数可变”，从而实现异构计算分配（有些 token 可能被更多专家处理）。NeurIPS 2022 的 Expert Choice Routing 系统性讨论了 token-choice 的痛点，并报告在相同计算资源下可带来更快收敛与更好的下游微调表现。[6](https://papers.neurips.cc/paper_files/paper/2022/file/2f00ecd787b432c1d36f3de9800728eb-Paper-Conference.pdf)
+
+除了“路由算法”本身，近年的 MoE 结构创新越来越集中在“专家专门化”（specialization）与“冗余控制”上。DeepSeekMoE 提出两项关键策略：细粒度专家分割（把每个专家 FFN 切分为更细小的多个专家，形成更多 routed experts，同时维持相近的总/激活参数预算），以及共享专家隔离（isolating shared experts），即保留少量“共享专家”用于承载共通知识，减少 routed experts 的重复学习程度。其消融实验显示共享专家隔离与更细粒度专家切分都能带来整体性能提升，并在扩展配置中给出“共享专家 : 激活 routed experts 约为 1:3”的经验选择。[7](https://arxiv.org/pdf/2401.06066)
+MoE 插入位置也并非只能是 FFN。Switch Transformer 报告过把“注意力中的 Q/K/V 投影矩阵”替换为 Switch 层的探索，并观察到质量收益的迹象，但在低精度 bfloat16 下更不稳定，最终未纳入主线方案；这提示“Attention-MoE / MoA（Mixture-of-Attention）”类设计在数值稳定与系统实现上门槛更高。[8](https://arxiv.org/pdf/2401.06066)
+
+### 训练目标与稳定性：负载均衡、容量约束与路由器数值问题
+
+从优化目标看，MoE 预训练仍然是标准自回归语言建模的交叉熵损失为主，但训练过程中多了“路由决策”这一额外的离散/半离散结构，使得训练更容易出现不稳定、负载塌缩与路由抖动等现象。Switch Transformers 明确指出，稀疏专家模型相比普通 Transformer 会引入额外训练难点，低精度格式会进一步放大路由 softmax 的不稳定风险，因此需要专门的训练技巧与实现细节来保证可扩展训练。[4](https://jmlr.org/papers/volume23/21-0998/21-0998.pdf)
+
+负载塌缩（routing collapse）的根源之一，是路由器倾向于把很大概率质量集中到少数专家，形成自我强化：被选中的专家训练更充分，因而更容易继续被选中；未被选中的专家更“冷”，越来越难翻身。早期稀疏门控 MoE 工作就描述了这种现象，并提出用“importance loss + load loss”等软约束来鼓励均匀使用专家：importance 以门控权重的 batch 累加衡量专家“被重视程度”，load 则衡量专家实际接收样本的均匀性，并都用变异系数（coefficient of variation）构造惩罚项。[8](https://www.cs.toronto.edu/~hinton/absps/Outrageously.pdf)
+
+Switch Transformers 在工程实现上进一步简化了负载均衡辅助损失，把它写成 \(f\) 与 \(P\) 的缩放点积：
+$$
+L_\text{balance}=\alpha\cdot N\cdot \sum_{i=1}^{N} f_i P_i
+$$
+其中 \(f_i\) 是分派到第 i 个专家的 token 比例，\(P_i\) 是路由概率在 batch 中分配给第 i 个专家的比例；并报告在其环境中 \(\alpha=10^{-2}\) 能较快实现负载均衡且不明显干扰主任务损失。[4](https://jmlr.org/papers/volume23/21-0998/21-0998.pdf)
+
+容量约束（expert capacity）是训练稳定性与系统效率的另一核心旋钮。Switch 明确给出 capacity factor（CF）与 expert capacity 的计算：  
+$$
+\text{expert capacity}=\Big(\frac{\text{tokens per batch}}{\text{num experts}}\Big)\times \text{capacity factor}
+$$
+CF>1 会给每个专家留 buffer，减少 overflow，但也会带来更多 padding、更多通信与更高计算开销；Switch 的图示与讨论强调 CF 的选择会显著影响速度与 token 丢弃比例。[4](https://jmlr.org/papers/volume23/21-0998/21-0998.pdf)
+
+当 overflow 发生时，系统必须决定“超出 capacity 的 token 怎么办”。由于 TPU 等加速器对张量形状的静态约束，Switch 讨论了 token dropping 的现实根源：专家容量固定，而路由是运行时动态决定的；若某专家接收 token 数超过 capacity，就需要协议处理。其在实现上沿用了“让溢出 token 通过残差连接直接旁路到下一层”的做法，并提出了 No-Token-Left-Behind（把溢出 token 迭代转派到第二高概率专家）来尽量减少丢弃，但报告未观察到稳定的经验收益，推测原因是改变 token-专家的已学习关联可能损害性能。[4](https://jmlr.org/papers/volume23/21-0998/21-0998.pdf)
+除了“负载与容量”，路由器本身的数值稳定（numerical stability）在大规模 MoE 训练中极其关键。ST-MoE 系列工作提出 router z-loss，通过惩罚路由 logits 的 log-sum-exp 的平方来抑制 logits 的无限增大：
+$$
+L_z(x)=\frac{1}{B}\sum_{i=1}^{B}\Big(\log\sum_{j=1}^{N} e^{x^{(i)}_j}\Big)^2
+$$
+并指出该项可在不明显伤害质量的同时显著提高稳定性；其总损失写作 \(L_\text{tot}=L_\text{CE}+c_B L_B+c_z L_Z\)，并在实验中选择 \(c_z=0.001\) 作为有效系数。该工作还解释了 MoE 对 bfloat16 更敏感的原因：路由相关的指数运算更多，且大数值范围会放大舍入误差，因此需要通过 z-loss 与 selective precision（关键张量用 float32）等手段“把数值压回更安全的区间”。[9](https://arxiv.org/pdf/2202.08906)
+
+另一个更偏“优化动力学”的问题是路由波动（routing fluctuation）：训练过程中同一输入的目标专家可能不断变化，而推理时只激活一个（或很少）专家，导致样本效率下降，因为同一类输入把梯度分散地更新到多个专家上，最后却只使用其中之一。STABLEMOE 针对该问题提出“两阶段训练”：第一阶段学习并蒸馏出轻量路由器，第二阶段冻结蒸馏路由器以固定 token-to-expert 分配，从而提升收敛速度与最终性能。[10](https://aclanthology.org/2022.acl-long.489.pdf)
+
+值得补充的是，关于“辅助损失会不会干扰主目标”的争论在 2024–2025 变得更具体。一项 ICLR 2025 审稿中的工作提出 Loss-Free Balancing：在 top-k 决策前对每个专家引入可动态更新的 bias，根据近期负载提升/抑制其路由分数，从而在不引入辅助损失梯度的情况下维持负载均衡，并报告在 1B/3B 训练规模上同时获得更好的负载与验证损失。对工程实践而言，这类方法的意义在于：它把“负载控制”从“需要反向传播权衡的损失项”部分转移为“控制系统式的在线调度”。[11](https://openreview.net/pdf/138f19eedd33952236974ad6aac9a9dcd545d462.pdf)
+
+### 并行训练与系统实现：Expert Parallelism、All-to-All 与内核效率
+
+MoE 的训练系统设计，通常可以理解为在数据并行（DP）、张量并行（TP）/模型并行与专家并行（EP，Expert Parallelism）之间做三维组合。GShard 的叙述是“MoE 层跨设备分片，其它层复制或常规并行”，并用自动分片（automatic sharding）降低改造成本；Switch 也专门讨论了在 SPMD 语义下如何组合数据、模型与专家并行来扩大规模。[5](https://openreview.net/pdf/cdb90e31da8446076492c5aef0c8c6ae35dd472a.pdf)
+
+在 EP 场景下，典型执行流程是：每个设备先对本地 token 计算路由，然后通过 all-to-all 把 token 表示发送到拥有相应专家参数的设备，在专家侧完成 FFN，再把结果 all-to-all 返回并按 token 原顺序聚合。DeepSpeed-MoE 的系统论文明确指出 all-to-all 延迟会随参与 GPU 数线性增长，并给出两个关键优化方向：其一是 hierarchical all-to-all，把跨节点与节点内通信分层组织以减少通信跳数；其二是 coordinated communication，利用张量并行造成的数据冗余，将 all-to-all 限制在相同 TP rank 的子集里，从而减少实际参与通信的 GPU 数。另外，它还强调对路由阶段进行 kernel fusion 与使用稀疏数据结构的必要性，以降低门控阶段的 kernel launch 与内存开销。[12](https://proceedings.mlr.press/v162/rajbhandari22a/rajbhandari22a.pdf)
+
+面向训练端的进一步系统化工作是 DeepSpeed-TED：通过把数据、张量与专家并行做三维混合拓扑编排，配合通信与优化器内存优化，报告可支持比既有方案大 4–8× 的 base model，并在特定配置下获得可观训练加速；其示意也清晰说明了在 MoE 层中 all-reduce（聚合 TP 的 attention 输出）与 all-to-all（按专家路由 token）的交错位置。[13](https://pssg.cs.umd.edu/assets/papers/2023-06-deepspeed-ted-moe.pdf)
+
+在“算子层/内核层”，MoE 的动态路由与每专家 token 数不均衡，会迫使框架在“padding 浪费算力”与“token dropping 损失质量”之间做取舍。MegaBlocks 的贡献在于把 MoE 计算改写为 block-sparse 操作，并实现匹配现代 GPU 的 block-sparse kernels，从而做到“从不 drop token”，同时避免为满足静态形状而付出过多 padding；其报告在端到端训练中可相对当时的 Tutel 获得最高约 40% 的速度提升，并显著快于高度优化的稠密训练框架基线。[14](https://people.eecs.berkeley.edu/~matei/papers/2023/mlsys_megablocks.pdf)
+
+Tutel 则代表了另一条系统路线：围绕 MoE 的动态负载，提供运行时自适应的并行策略切换与 pipeline，并在其论文/公开页面中报告了针对 MoE 通信的层次化算法与大规模 GPU 数下的显著加速比。对工程补充而言，关键结论不是“某库更快”，而是：MoE 的系统效率高度依赖“通信拓扑 + 路由表示 + kernel 形态”，属于需要算法与系统共同设计（co-design）的架构。[15](https://www.microsoft.com/en-us/research/publication/tutel-adaptive-mixture-of-experts-at-scale/)
+
+### MoE 在预训练、SFT 与偏好对齐中的特殊点
+
+从你的三阶段训练流程视角，MoE 更像是一种“底座结构选择”，主要改变阶段一预训练的计算结构与系统形态，但并不改变“预训练 → 监督微调（SFT）→ 偏好对齐（RLHF/DPO 等）”的宏观范式；真正需要补充的是：MoE 把“路由器与专家的统计/正则”引入了后训练的关键路径，使得 SFT 与对齐阶段也必须重新审视负载均衡、正则强度与路由稳定性。Switch Transformers 就明确指出，理解稀疏专家模型的微调动力学很复杂，并与正则化、负载均衡与微调超参显著相关。[4](https://jmlr.org/papers/volume23/21-0998/21-0998.pdf)
+
+
+在 SFT/下游微调中，一个高频现象是“小数据过拟合更严重”。Switch 给出直接证据：由于稀疏模型在相同 FLOPs 下通常拥有更多总参数，因此在样本较少的下游任务上更容易过拟合；其提出 “expert dropout” 的经验规程——保持非专家层较小 dropout（例如 0.1），而在专家 FFN 的中间激活处使用显著更大的 dropout（例如 0.4），在多个小规模下游任务上得到更好结果。ST-MoE 也在正则化研究中讨论了提高 expert dropout 带来的泛化收益。[4](https://jmlr.org/papers/volume23/21-0998/21-0998.pdf)
+
+在偏好对齐方向，公开资料已出现“MoE 完整走完预训练 + SFT + 强化学习对齐”的案例叙述。以 DeepSeek-V2 为例，其摘要中明确写到：先在 8.1T tokens 语料上预训练，再进行 SFT 与强化学习（RL）以释放能力；同时强调其以 236B 总参数、每 token 激活 21B 参数的 MoE 结构实现“更经济的训练与更高效的推理”。这对你的文档补充点在于：MoE 并不只适用于预训练阶段，后训练同样可行，但训练与服务侧需要持续监控“路由分布是否因对齐训练而漂移”。[16 DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model](https://arxiv.org/abs/2405.04434)
+
+另一个与你文档强相关的补充是“从稠密到 MoE 的转化式训练”，它直接改变工程路径与成本结构。Sparse Upcycling（ICLR 2023）指出：尽管稀疏模型在质量-计算上更高效，但从零训练仍然数据饥渴且昂贵，因此提出 sparse upcycling：从一个已训练好的稠密 checkpoint 出发，把其中的 MLP/FFN 复制成多个专家（初始时专家同构），随机初始化路由器，然后继续训练；论文报告在语言与视觉任务上，可用显著低于“从零训练稀疏模型”的额外预算获得优于稠密继续训练的收益，并把这一策略定位为“复用既有 sunk cost”的通用手段。[17](https://arxiv.org/pdf/2212.05055)
+
+更进一步，ACL 2025 的 Upcycling Instruction Tuning（UpIT）把 upcycling 推进到“指令微调阶段”：它观察到稠密模型在 instruction tuning 的不同 epoch checkpoint 可能天然擅长不同领域，于是把这些 checkpoint 视为“候选专家”，再用参数合并等方式扩展专家数量，并用很小比例的种子数据预优化路由器，目标是以更少额外数据把稠密指令模型转为 MoE 指令模型。这直接对应你文档第二阶段 SFT 的工程落地：MoE 并不一定要求“先预训练就是 MoE”，也可以在 SFT 过程中通过 upcycling 获得。[18](https://aclanthology.org/2025.acl-long.637.pdf)
+
+### 经验权衡与选型要点：何时用 MoE、风险在哪里、前沿趋势如何
+
+从实证角度，MoE 的优势通常在“单位训练时间/单位计算预算的质量提升”上体现。GShard 报告用自动分片与条件计算把多语翻译 MoE 扩展到 600B 参数量级，并给出在大规模 TPU 集群上可在数天内训练完成、且训练成本优于训练大量双语基线模型总和的对比；Switch Transformers 则从 top-1 简化路由与训练技巧入手，强调在固定计算与墙钟时间下实现更好的 speed-quality 权衡，并讨论了 capacity factor 降低时的效率收益。[5](https://openreview.net/pdf/cdb90e31da8446076492c5aef0c8c6ae35dd472a.pdf)
+
+从推理角度，MoE 的“激活参数少”并不自动等价于“部署成本低”。Mixtral 技术报告指出其“每 token 仅使用子集参数”，从而在低 batch 时可获得更快推理、在高 batch 时获得更高吞吐；但与此同时，MoE 需要携带巨大专家参数集合，带来权重驻留与加载压力。后续工作以 Mixtral 为例量化了这一点：其专家层可占据模型参数的绝大部分（例如报告 Mixtral-8x7B 的 expert 层约占 96% 参数），这会在推理时造成显著的显存/内存与存储压力，并引出“专家剪枝/合并/蒸馏”的系统需求。[19](https://arxiv.org/pdf/2401.04088)
+
+工程上最关键的风险集中在三类瓶颈：其一是通信，all-to-all 往往决定 EP 的可扩展性上限；其二是负载与容量，如果 capacity factor 与负载均衡做不好，就会出现 token dropping、专家训练不充分或尾延迟被最拥塞专家拖垮；其三是数值稳定，路由 softmax 与指数运算使得 bfloat16 更容易爆炸，需要 selective precision 与 router z-loss 等组合拳。ST-MoE 直接指出 capacity factor 与并行维度的 Pareto 最优强依赖硬件/软件栈，并用 profiling 展示在更大模型下提高 capacity factor 会明显拖慢 step time；DeepSpeed-MoE 系统论文则从通信跳数与并行组构造的角度解释了瓶颈来源与工程优化手段。[9](https://arxiv.org/pdf/2202.08906)
+
+前沿趋势上，研究正在把 MoE 从“经验调参”推向“更可解释的规律”。一方面，出现了对负载均衡机制的重新设计，例如 Loss-Free Balancing 试图绕开辅助损失带来的“干扰梯度”两难；另一方面，开始有人把“稀疏度/激活计算”纳入 scaling law 的讨论。2026-03-01（arXiv v3）的最新工作以固定预算训练一系列 MoE，提出 reasoning 与 memorization 可能对“active FLOPs”和“tokens-per-parameter”等维度呈现不同依赖关系，并认为 RL 后训练与测试时计算放大不一定改变这些整体趋势；尽管这仍是预印本结论，但它提示实践层的一个重要判断：MoE 的最佳稀疏度可能不是“越稀疏越好”或“总参数越大越好”，而是要和数据量、激活计算与任务类型联合决定。[20](https://arxiv.org/html/2508.18672v3)
+
+## MultiModel
+
+
 ## KV cache
 
 KV cache 可以把它理解成：Transformer 在推理时，为了避免每生成一个新 token 都把“历史上下文”重新算一遍注意力所需要的中间结果，把每一层注意力里的 **K（Key）和 V（Value）** 按 token 顺序缓存起来。它和“模型架构”以及“上下文长度”的关系，几乎都来自注意力机制本身。
-
-
 ### **1) 它在 Transformer 里到底缓存了什么**
-
 
 以一层自注意力为例（不管是 Decoder-only 还是 Decoder 端），每个 token 会经过线性投影得到：
 
@@ -154,38 +249,24 @@ KV cache 可以把它理解成：Transformer 在推理时，为了避免每生�
 - K：Key（要和所有历史 token 的 Q 做相似度）  
 - V：Value（用注意力权重对 V 做加权求和）  
 
-
 在自回归生成时，第 t 步生成第 t 个 token，需要用当前 token 的 Q 去“看”从 1..t 的所有 K/V。
-
 如果不缓存，每一步都得把 1..t-1 的所有 token 重新过一遍注意力投影算出 K/V，代价非常大。
 
-
 所以 KV cache 的核心就是：
-
 **历史 token 的 K/V 一旦算出来就存起来；下一步只算新 token 的 K/V，然后把它追加进缓存。**
-
 
 ### **2) KV cache 和“上下文长度”的关系为什么是线性的**
 
-
 假设你当前序列总长度是 S（包含 prompt token + 已生成 token），那么每一层缓存的 K/V 张量都要为这 S 个 token 存一份。
 
-
 因此单条序列的 KV cache 大小近似：
-
 - **KV_cache_bytes ≈ S × KV_bytes_per_token**  
-
 
 这就是为什么你把 --max-model-len 从 8k 提到 16k，KV cache 需求几乎直接翻倍。
 
-
 另外并发也线性叠加：
-
 如果同时服务 N 条序列（vLLM 里常见是 --max-num-seqs 限制的并发上限），那么 KV cache 近似再乘 N（当然实际还会有分页/碎片/预留开销）。
-
-
 ### **3) KV cache 和“模型架构”的关系：哪些结构决定它的大小**
-
 
 KV cache 的大小主要由注意力层的这些结构参数决定：
 
@@ -193,54 +274,40 @@ KV cache 的大小主要由注意力层的这些结构参数决定：
 - **每个头的维度 d（head_dim）**：维度越大，K/V 张量越大，线性增长。  
 - **KV 头数 H_kv（num_kv_heads）**：这是最关键的架构变量之一。    - 传统 MHA：H_kv = H（每个 attention head 都有独立的 K/V）        - GQA：H_kv < H（多个 Q 头共享一组 K/V，KV cache 直接按比例变小）        - MQA：H_kv = 1（所有头共享一组 K/V，KV cache 最省）        
 
-
 所以，同样参数规模的模型，如果用 GQA/MQA，KV cache 可能比纯 MHA 小很多。
 
-
 一个常用的估算公式（单序列、每 token）是：
-
 - **KV_bytes_per_token ≈ 2 × L × H_kv × d × bytes_per_element**  
-
 
 其中前面的 2 是因为要存 K 和 V 两份。
 
-
 注意：MLP/FFN 的宽度、参数量大不大，主要影响“权重显存”和算力，不直接决定 KV cache；KV cache 主要跟注意力部分的形状有关。
 
-
 ### **4) KV cache 的 dtype 决定“每 token 多少 KB”**
-
 
 你看到的 “KV Cache per Token 12 kB vs 48 kB” 本质上就是 bytes_per_element 不同（以及实现细节可能不同）：
 
 - KV 用 FP16：通常每个元素 2 bytes  
 - KV 用 FP8：通常每个元素 1 byte  
 
-
 因此在结构参数不变的情况下，把 KV cache 从 FP16 改成 FP8，理论上能省一半左右（实际可能还会有对齐、scale、元数据等开销）。
 
-
 要强调一点：**权重做 4bit（AWQ/GPTQ）不等于 KV cache 也会 4bit**。权重量化主要省的是“Memory Size”，KV cache 省不省要看你 KV cache 用什么 dtype（例如你配置的 --kv-cache-dtype fp8_*）。
-
 
 ### **5) 它和“推理两个阶段”的关系：prefill 和 decode**
 
 - **Prefill（处理 prompt）**：一次性把 prompt 的 S_prompt 个 token 过模型，建立起长度为 S_prompt 的 KV cache。这个阶段吞吐关键在“能否高效批处理/分块”。  
 - **Decode（逐 token 生成）**：每生成 1 个 token，只新增 1 份 K/V 并追加进 cache。此时每步注意力仍要读全部历史 KV，因此单步计算量和显存带宽压力随 S 增长。  
 
-
 这也是为什么长上下文下，生成速度会变慢，并且 KV cache 会吃掉越来越多显存。
 
-
 ### **6) 放到 vLLM 里，你该怎么用这套关系来做容量预估**
-
 
 你可以用下面这个“工程上够用”的近似：
 
 - 单序列 KV ≈ KV_per_token × 实际序列长度  
 - 总 KV ≈ 单序列 KV × 并发序列数（再加一点管理开销）  
 - 总显存 ≈ 权重显存 + 总 KV + 运行时余量  
-
 
 所以：
 
@@ -249,13 +316,11 @@ KV cache 的大小主要由注意力层的这些结构参数决定：
 - 想省 KV：优先考虑 --kv-cache-dtype fp8_*，其次是控制 --max-model-len、并发和请求长度分布  
 - 模型架构层面：有 GQA/MQA 的模型天生 KV 更省  
 
-
 ### KV cache 优化
 
 - 具体适配性调研见《learn-LLM.assets/FP8-KV-Cache量化研究.md》
 
 问题：
-
 https://huggingface.co/cyankiwi/Qwen3-30B-A3B-Instruct-2507-AWQ-4bit  这是原文链接，这个kv cache 写着3GB（200k）这个是啥意思？KV cache会随着模型量化线性降低吗？
 
 #### "3GB (200k)" 的含义
@@ -270,26 +335,21 @@ https://huggingface.co/cyankiwi/Qwen3-30B-A3B-Instruct-2507-AWQ-4bit  这是原�
 计算验证：`12.0 kB × 262144 tokens ≈ 3.0 GB` ✓
 
 ---
-
 #### KV Cache 是否随模型量化线性降低？
 
 **这是一个关键误区！** 从表格看，KV Cache 确实从 48 kB/token 降到了 12 kB/token（4倍），但这 **不是模型权重量化（AWQ INT4）直接导致的**。
 
-
 KV Cache 的大小取决于：
-
 ```
 KV Cache per token = 2 × num_layers × num_kv_heads × head_dim × dtype_bytes
 ```
 
 对于 Qwen3-30B-A3B：
-
 - `num_layers = 48`
 - `num_kv_heads = 4`（使用 GQA，Q有32个头，KV只有4个头）
 - `head_dim = 128`（通常）
 
 **原版 FP16/BF16**：
-
 ```
 2 × 48 × 4 × 128 × 2 bytes = 98,304 bytes ≈ 96 kB
 ```
@@ -299,7 +359,6 @@ KV Cache per token = 2 × num_layers × num_kv_heads × head_dim × dtype_bytes
 **量化版 12 kB**： 这里 KV Cache 降低到 1/4，说明这个模型使用了 **KV Cache 量化技术**（如 FP8 或 INT8 KV Cache），而不仅仅是模型权重量化。
 
 ---
-
 #### KV Cache 技术原理重申
 
 ##### 1. 什么是 KV Cache？
@@ -315,9 +374,7 @@ KV Cache per token = 2 × num_layers × num_kv_heads × head_dim × dtype_bytes
 第2个token: 计算 K₂, V₂ → 存入缓存，用 Q₂ 与 [K₁,K₂], [V₁,V₂] 做 Attention
 第n个token: 计算 Kₙ, Vₙ → 存入缓存，用 Qₙ 与所有缓存的 K, V 做 Attention
 ```
-
 ##### 2. KV Cache 的显存占用
-
 ```python
 # 每个 token 的 KV Cache 大小
 kv_cache_per_token = 2 * num_layers * num_kv_heads * head_dim * dtype_bytes
@@ -327,7 +384,6 @@ total_kv_cache = kv_cache_per_token * sequence_length * batch_size
 ```
 
 对于长上下文模型（如 256k），KV Cache 往往成为 **显存瓶颈**，甚至超过模型权重本身。
-
 ##### 3. KV Cache 优化技术
 
 |技术|原理|效果|
@@ -349,7 +405,6 @@ total_kv_cache = kv_cache_per_token * sequence_length * batch_size
 ##### 5. vLLM 中的 KV Cache 量化
 
 vLLM 支持自动 KV Cache 量化：
-
 ```bash
 # 启用 FP8 KV Cache
 vllm serve model_name --kv-cache-dtype fp8
@@ -359,7 +414,6 @@ vllm serve model_name --kv-cache-dtype int8
 ```
 
 ---
-
 #### 总结
 
 |问题|答案|
@@ -368,12 +422,11 @@ vllm serve model_name --kv-cache-dtype int8
 |KV Cache 随量化线性降低？|**不完全是**。模型权重量化（AWQ）不直接影响 KV Cache。KV Cache 降低需要专门的 KV Cache 量化技术（如 FP8）|
 |为什么表格显示降低 4x？|该模型很可能同时使用了 KV Cache 量化（FP8/INT4）来减少缓存占用|
 
-
 ## Chunking
 
 
-## 量化
 
+## 量化
 
 ### 引言
 
@@ -470,15 +523,14 @@ _表1：主流大模型量化算法特性对比。（推理加速给出的倍率
 参考文献：本文内容引用了相关算法的论文和官方报告，包括Frantar等人的GPTQ工作 、林Ji等人的AWQ论文 、肖Guangxuan等人的SmoothQuant论文 、Frantar等人的SparseGPT论文 、Intel发布的AutoRound博客和论文 、Dettmers等人的QLoRA论文 、Egiazarian等人的AQLM论文 、以及OpenVINO团队的技术更新博客对于OMQ等方法的综述 等。这些权威资料佐证了本文对各算法原理及性能的描述。
 
 
-
 # 学习工具
-
 
 ## 模型可视化
 
 - [transformer-explainer](https://github.com/poloclub/transformer-explainer)
 - [bertviz-Visualize Attention in NLP Models](https://github.com/jessevig/bertviz)
-- 
+- [tiktokenizer](https://tiktokenizer.vercel.app/)
+- [llm Visualize](https://bbycroft.net/llm)
 
 ```bash
 git clone https://github.com/poloclub/transformer-explainer.git
