@@ -1,5 +1,251 @@
 
-# LLM 部署平台
+# 一、LLM 部署基础知识
+
+##  部署框架
+| 框架/平台            | 核心优势                                | 跨平台支持 (CPU/GPU)        | 部署灵活性 & 异构兼容性      | 代表性应用场景                        |
+| ---------------- | ----------------------------------- | ---------------------- | ------------------ | ------------------------------ |
+| **ONNX Runtime** | 推理优化、**标准模型格式支持**、硬件后端抽象            | **广泛** (x86, ARM, GPU) | **高** (EP机制灵活切换后端) | 边缘设备、云原生推理、多硬件环境统一部署           |
+| **Triton**       | **高性能推理**、多框架支持、**动态批处理**           | **广泛** (x86, ARM, GPU) | **高** (支持多种硬件和平台)  | 高并发云服务、复杂模型管道、混合负载 (CPU/GPU协同) |
+| **LMDeploy**     | **大模型（LLM）专用**、**推理性能优化**、量化        | 支持 (GPU为主)             | 中 (专注LLM高效推理)      | 大语言模型低延迟推理、消费级GPU部署、降低显存消耗79   |
+| **FastDeploy**   | **端到端部署**、**多硬件适配** (国产芯片)、工具链完整    | **广泛** (x86, ARM, GPU) | **高** (国产芯片深度适配)   | 国产化环境、全场景（云边端）部署、快速原型验证        |
+| **OpenVINO**     | **Intel硬件深度优化** (CPU, iGPU)、计算机视觉优势 | x86, Intel GPU         | 中 (Intel生态最佳)      | Intel平台高性能推理、边缘AI、计算机视觉应用      |
+
+## onnxruntime
+- [microsoft-onnxruntime](https://github.com/microsoft/onnxruntime)
+- [onnxruntime-doc](https://onnxruntime.ai/docs/)
+
+### onnxruntime-gpu和cuda的版本关系
+- [onnx-CUDA-ExecutionProvider](https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html)
+#### CUDA 12.x 
+
+|ONNX Runtime|CUDA|cuDNN|Notes|
+|---|---|---|---|
+|1.20.x|12.x|9.x|Avaiable in PyPI. Compatible with PyTorch >= 2.4.0 for CUDA 12.x.|
+|1.19.x|12.x|9.x|Avaiable in PyPI. Compatible with PyTorch >= 2.4.0 for CUDA 12.x.|
+|1.18.1|12.x|9.x|cuDNN 9 is required. No Java package.|
+|1.18.0|12.x|8.x|Java package is added.|
+|1.17.x|12.x|8.x|Only C++/C# Nuget and Python packages are released. No Java package.|
+
+#### CUDA 11.x 
+
+|ONNX Runtime|CUDA|cuDNN|Notes|
+|---|---|---|---|
+|1.20.x|11.8|8.x|Not available in PyPI. See [Install ORT](https://onnxruntime.ai/docs/install) for details. Compatible with PyTorch <= 2.3.1 for CUDA 11.8.|
+|1.19.x|11.8|8.x|Not available in PyPI. See [Install ORT](https://onnxruntime.ai/docs/install) for details. Compatible with PyTorch <= 2.3.1 for CUDA 11.8.|
+|1.18.x|11.8|8.x|Available in PyPI.|
+|1.17  <br>1.16  <br>1.15|11.8|8.2.4 (Linux)  <br>8.5.0.96 (Windows)|Tested with CUDA versions from 11.6 up to 11.8, and cuDNN from 8.2 up to 8.9|
+|1.14  <br>1.13|11.6|8.2.4 (Linux)  <br>8.5.0.96 (Windows)|libcudart 11.4.43  <br>libcufft 10.5.2.100  <br>libcurand 10.2.5.120  <br>libcublasLt 11.6.5.2  <br>libcublas 11.6.5.2  <br>libcudnn 8.2.4|
+|1.12  <br>1.11|11.4|8.2.4 (Linux)  <br>8.2.2.26 (Windows)|libcudart 11.4.43  <br>libcufft 10.5.2.100  <br>libcurand 10.2.5.120  <br>libcublasLt 11.6.5.2  <br>libcublas 11.6.5.2  <br>libcudnn 8.2.4|
+|1.10|11.4|8.2.4 (Linux)  <br>8.2.2.26 (Windows)|libcudart 11.4.43  <br>libcufft 10.5.2.100  <br>libcurand 10.2.5.120  <br>libcublasLt 11.6.1.51  <br>libcublas 11.6.1.51  <br>libcudnn 8.2.4|
+|1.9|11.4|8.2.4 (Linux)  <br>8.2.2.26 (Windows)|libcudart 11.4.43  <br>libcufft 10.5.2.100  <br>libcurand 10.2.5.120  <br>libcublasLt 11.6.1.51  <br>libcublas 11.6.1.51  <br>libcudnn 8.2.4|
+|1.8|11.0.3|8.0.4 (Linux)  <br>8.0.2.39 (Windows)|libcudart 11.0.221  <br>libcufft 10.2.1.245  <br>libcurand 10.2.1.245  <br>libcublasLt 11.2.0.252  <br>libcublas 11.2.0.252  <br>libcudnn 8.0.4|
+|1.7|11.0.3|8.0.4 (Linux)  <br>8.0.2.39 (Windows)|libcudart 11.0.221  <br>libcufft 10.2.1.245  <br>libcurand 10.2.1.245  <br>libcublasLt 11.2.0.252  <br>libcublas 11.2.0.252  <br>libcudnn 8.0.4|
+
+
+## 国产GPU
+
+### 华为NPU-CANN框架
+- [CANN](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1/index/index.html)
+- [Atlas 推理卡 NPU驱动和固件安装指南](https://support.huawei.com/enterprise/zh/doc/EDOC1100493509/426cffd9)
+- [华为软件包](https://support.huawei.com/enterprise/zh/ascend-computing/cann-pid-251168373/software/258923273?idAbsPath=fixnode01|23710424|251366513|22892968|251168373)
+- [ascend gitee 仓库](https://gitee.com/ascend)
+	- [torch-npu](https://gitee.com/ascend/pytorch)
+
+![](./scripts/assets/华为NPU框架.png)
+
+CANN（Compute Architecture for Neural Networks）是华为为昇腾（Ascend）AI处理器打造的**全栈软件平台和异构计算架构**。它的核心使命是充分发挥昇腾AI处理器的强大算力，简化AI应用开发与部署，并充当上层深度学习框架（如TensorFlow, PyTorch, MindSpore）与底层昇腾硬件之间的“桥梁”。
+
+官方文档详细介绍Host和Device的概念以及标准/开放形态，是因为这直接关系到开发者**如何利用CANN进行应用开发、资源调配和性能优化**，是实现其“连接AI框架与硬件的关键角色”这一目标的基础。
+
+CANN官方文档介绍Host（主机）和Device（设备）的概念，以及标准形态（EP模式）与开放形态的区别，主要是因为这关系到**开发模式、资源利用和性能优化**：
+
+*   **Host（主机）**：通常指与昇腾AI处理器相连的**X86或ARM服务器**。它负责整体的控制流、业务逻辑，以及不适合在AI处理器上运行的计算（如某些自定义预处理或后处理）。
+*   **Device（设备）**：指安装了**昇腾AI处理器的硬件板卡**（如Atlas 300I推理卡），通过PCIe接口与Host服务器连接。它专注于提供强大的神经网络（NN）计算能力。
+
+这种划分源于异构计算的常见模式，即**专用协处理器（Device）与通用主机（Host）协同工作**。
+
+CANN支持两种主要的Device工作形态，以适应不同的场景需求：
+
+1.  **标准形态（EP模式）**：
+    *   􀋾 **Device作为被动协处理器**：在此形态下，昇腾AI处理器工作于**EP（Endpoint）模式**。它作为PCIe总线上的一个从设备，**其上的CPU资源通常仅能通过Host调用**。
+    *   􀋾 **常见开发流程**：AI应用程序（如模型推理的所有步骤）主要**运行在Host侧**。Host通过CANN提供的接口（如AscendCL）调用Device的算力。
+    *   􀋾 **适用场景**：**大多数推理场景**，开发相对简单，资源管理集中于Host。
+
+2.  **开放形态**：
+    *   􀋾 **释放Device侧CPU算力**：此形态下，开发者可以**利用Device板载的Control CPU的通用计算能力**。
+    *   􀋾 **开发流程变化**：需要为Device侧的CPU**编译专用的应用程序**（通常使用华为的HCC编译器），并将其放入Device的文件系统镜像中。
+    *   􀋾 **主要优势**：
+        *   **降低Host负载**：将一些计算任务（如图像/视频预处理）卸载到Device端执行。
+        *   **减少数据传输**：数据在Device内部处理，避免了在Host和Device之间的大量数据传输，从而**降低延迟、提升整体效率**。
+    *   􀋾 **适用场景**：对**延迟敏感**或希望**最大化利用Device资源**的应用。
+
+
+官方文档详细介绍Host、Device及两种形态，主要是因为：
+
+*   **明确开发环境配置**：让开发者清楚知道**代码的不同部分将在何处运行**（Host的X86/ARM CPU 还是 Device的NPU或Control CPU），从而正确设置编译环境、链接库和部署路径。
+*   **理解性能瓶颈与优化方向**：数据传输 between Host and Device 往往是性能瓶颈之一。了解开放形态的存在，就知道可以通过**将更多计算任务卸载到Device端**来减少数据交换，从而提升性能。
+*   **实现资源高效利用**：引导开发者根据实际需求选择合适的形态，避免Device侧CPU资源的闲置，实现**异构计算资源的精细化利用和效率最大化**。
+*   **避免概念混淆**：清晰区分Host和Device，有助于理解CANN的工具链（如哪些工具用在Host上分析Device状态）。
+
+CANN 是华为昇腾AI生态的软件核心，它通过一系列工具和接口，让开发者能高效利用昇腾芯片的强大算力。
+
+理解**Host（控制与通用计算）、Device（专用AI计算）** 的概念及**标准（集中控制）、开放（分布式利用）** 两种形态，对于在昇腾平台上进行**高效的应用开发、性能优化和资源管理至关重要**。这直接反映了CANN的设计哲学：**充分发挥异构计算优势，提供灵活且高性能的AI计算解决方案**。#### CANN安装
+
+```bash
+# conda 在线自动安装 CANN
+conda config --add channels https://repo.huaweicloud.com/ascend/repos/conda/
+conda install ascend::cann-toolkit
+```
+
+#### CANN组件
+
+| CANN组件/功能类别   | 关键组成部分/技术举例                                 | 主要功能简介                                       |
+| :------------ | :------------------------------------------ | :------------------------------------------- |
+| **统一编程接口**    | AscendCL (Ascend Computing Language)        | 提供设备管理、内存管理、任务调度等API，是开发者直接调用的主要接口。          |
+| **基础计算库与算子**  | ACL (Ascend Computing Library), AOL算子库      | 提供高效的基础数学运算（如BLAS）和深度优化过的AI算子（如卷积、矩阵运算）。     |
+| **深度学习框架支持**  | torch_npu (PyTorch适配), MindSpore            | 实现与主流深度学习框架的无缝集成，允许框架调用昇腾硬件。                 |
+| **模型转换与部署工具** | ATC (Ascend Tool Chain)                     | 将其他框架（如ONNX, Caffe）训练的模型转换为昇腾处理器可执行的格式（.om）。 |
+| **编译与执行引擎**   | 图编译器, Runtime运行时                            | 将计算图转为硬件可执行指令，并进行深度优化（如算子融合、内存优化）。           |
+| **性能调优工具**    | AOE (Ascend Optimization Engine), Profiling | 自动或辅助进行性能调优，例如优化算子调度策略。                      |
+| **高级开发与调试支持** | Ascend C语言, msdebug调试工具                     | 支持开发者进行底层算子开发和调试。                            |
+| **异构计算管理**    | 调度不同计算单元（NPU, CPU等）                         | 智能分配任务到合适的计算单元，以实现最佳计算性能。                    |
+#### CANN依赖
+
+| 类别                                                                                                          | 名称                  | 版本要求                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| :---------------------------------------------------------------------------------------------------------- | :------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 安装时所需工具                                                                                                     | Python              | Python3.7._x_至3.11.4版本。<br><br>如果需安装NNAL软件包的Python库，请安装Python3.10._x_或3.11._x_版本。<br><br>如果需安装TensorFlow，请安装要求的Python版本：<br><br>- TensorFlow1.15配套的Python版本是：Python3.7._x_（3.7.5~3.7.11）。<br>- TensorFlow2.6.5配套的Python版本是：Python3.7._x_（3.7.5~3.7.11）、Python3.8._x_、Python3.9._x_。<br><br>安装失败、版本不满足或者未包含动态库libpython3._x_.so请参考[编译安装Python](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1/softwareinst/instg/instg_0061.html#ZH-CN_TOPIC_0000002366267590)操作。 |
+| python3-pip                                                                                                 | 与已安装的Python版本配套使用。  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 运行时所需工具                                                                                                     | gcc                 | >=7.3.0，以系统源提供的版本为准。                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| g++                                                                                                         | 与已安装gcc版本配套使用。      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 运行时所需Python第三方库                                                                                             | numpy               | 大于等于1.19.2，小于等于1.24。<br><br>Python3.7.x时推荐安装numpy 1.21.6版本。                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| decorator                                                                                                   | >=4.4.0             |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| sympy                                                                                                       | >=1.5.1             |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| cffi                                                                                                        | >=1.12.3            |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| protobuf                                                                                                    | 3.20._x_            |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| attrs<br><br>cython<br><br>pyyaml<br><br>pathlib2<br><br>scipy<br><br>requests<br><br>psutil<br><br>absl-py | 无版本要求，安装的版本以pip源为准。 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 软件包运行时依赖                                                                                                    | glibc               | 运行NNAL加速库时，glibc版本需大于等于2.17，执行**ldd --version**可以查询glibc版本（主流Linux系统均满足glibc版本要求，若不满足要求，**建议通过重装新版本的系统解决**，不推荐直接升级glibc，直接升级glibc可能导致系统崩溃）。                                                                                                                                                                                                                                                                                                                                              |
+
+#### [onnxruntime-cann](https://onnxruntime.ai/docs/execution-providers/community-maintained/CANN-ExecutionProvider.html)
+```bash
+pip install onnxruntime-cann
+```
+
+```python
+import numpy as np
+import onnxruntime as ort
+
+providers = [
+    (
+        "CANNExecutionProvider",
+        {
+            "device_id": 0,
+            "arena_extend_strategy": "kNextPowerOfTwo",
+            "npu_mem_limit": 2 * 1024 * 1024 * 1024,
+            "enable_cann_graph": True,
+        },
+    ),
+    "CPUExecutionProvider",
+]
+
+model_path = '<path to model>'
+
+options = ort.SessionOptions()
+options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
+options.execution_mode = ort.ExecutionMode.ORT_PARALLEL
+
+session = ort.InferenceSession(model_path, sess_options=options, providers=providers)
+
+x = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]], dtype=np.int64)
+x_ortvalue = ort.OrtValue.ortvalue_from_numpy(x, "cann", 0)
+
+io_binding = sess.io_binding()
+io_binding.bind_ortvalue_input(name="input", ortvalue=x_ortvalue)
+io_binding.bind_output("output", "cann")
+
+sess.run_with_iobinding(io_binding)
+
+return io_binding.get_outputs()[0].numpy()
+```
+
+
+
+## docker 部署onnx-cuda
+
+docker不依赖宿主机的cuda，但却依赖宿主机的显卡驱动。另外，docker 运行还需要安装[Nvidia Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)(win需要wsl2安装后额外配置，下文介绍)；且docker run 指定gpu。
+
+![wsl-cuda](./scripts/assets/wsl-cuda.png)
+### docker cuda 支持
+
+#### 1. [Nvidia Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+- 这是 **Linux 上的通用方案**。
+- 如果你在 **裸机 Linux**（比如 Ubuntu server）上跑 Docker，要让容器访问 GPU，就必须装 nvidia-container-toolkit。
+- 它负责把宿主机上的 GPU 驱动、CUDA 库 mount 到容器里。
+- 没有它，Linux 上的 Docker 就看不到 GPU。
+##### 1.1 安装
+
+
+##### 1.2 配置
+
+
+#### 2. [CUDA on WSL](https://developer.nvidia.com/cuda/wsl)
+
+要注意的是：wsl2和里面的ubuntu发行版是不同的，wsl2是虚拟机(特殊的)，docker和ubuntu都可以运行在上面。
+
+- 这是 **NVIDIA + Microsoft** 合作的方案，让 WSL2 (Linux 子系统) 可以调用 Windows 驱动里的 GPU。
+- 本质上：**让 WSL2 里的 Linux 看见显卡**。
+
+一般这个默认自动安装的（windows装了比较新版本的显卡驱动）；可以用指令来验证：
+```bash
+wsl -- nvidia-smi
+```
+
+#### 3. [GPU support in Docker Desktop for Windows](https://docs.docker.com/desktop/features/gpu/)
+
+- 在 Windows 上的 Docker Desktop **自带对 GPU 的支持**，不需要在 Windows 上额外装 NVIDIA Container Toolkit。(using wsl2 backend)
+- 它会自动对接 WSL2 里的 GPU (上面第 1 步)，然后让容器里可以看到 GPU。
+- 所以在 Windows Docker Desktop 上跑 GPU 容器，流程是：
+    1. Windows 装好 NVIDIA 驱动 (>= 470)。
+    2. 直接在容器run的时候加上 `--gpus all` 就能用 GPU。
+
+#### 4. [docker compose cuda](https://docs.docker.com/compose/how-tos/gpu-support/)
+下面是官方推荐：
+```dockerfile
+# swarm 的 docker-compose.yml
+services:
+  myservice-add-name:
+		巴拉巴拉
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+```
+
+```bash
+# 正常运行
+docker compose up -d
+```
+
+### docker pytorch cuda
+
+显卡驱动可以向下兼容cuda版本，所以宿主机的显卡驱动要比较新，然后接下来基础镜像有四种方案：
+- 拉一个python，然后容器内装cuda和pip的onnxruntime
+- 拉一个[cuda](https://hub.docker.com/r/nvidia/cuda/tags)，然后容器内装python
+- 拉一个[PyTorch-cuda-runtime](https://hub.docker.com/r/pytorch/pytorch/tags)，然后里面装onnxruntime
+- 拉一个[python-cuda-onnx](https://hub.docker.com/r/microsoft/azureml-onnxruntimefamily)，只需要自己w装库[onnx-cuda-docker博客（已过时）](https://blog.csdn.net/weixin_42939529/article/details/122006947)
+
+虽然看似最后一种方案最好，但是这个镜像是微软做的，只很少几个版本的组合，现在也不再支持，如果不符合自己的版本，可能自己的软件出现兼容性问题，它现在提供[onnx-github-Dockerfile.cuda](https://github.com/microsoft/onnxruntime/blob/main/dockerfiles)可以自行构建（网络问题……构建也很慢）。
+
+坑最少的还是第三种方案，但是也需要注意两点：
+1. onnxruntime的版本所需要的一定要和pytorch所带的cuda和cudnn版本一致。
+2. 代码中的导入方式不太一样，具体见onnx官网doc
+
+### [tensorflow-docker-gpu](https://hub.docker.com/r/tensorflow/tensorflow/tags)
+
+
+# 二、具体 LLM 部署平台
 
 vllm、llama.cpp、ollama、openllm
 
@@ -935,3 +1181,15 @@ vLLM 的指标文档把指标分为 server-level 与 request-level 两类，非�
 但它是“工程换收益”：会引入 KV 传输与更多运维复杂度，且文档明确是 experimental。
 
 建议你先把：APC + chunked prefill + 并发闸门 + RAG 侧减 prompt/减调用 做到位，再评估是否需要上解耦。
+
+
+# LLM 推理部署问题
+
+
+## 理论问题
+
+
+## 实践问题
+
+### tensorflow内存overflow问题
+用tf2onnx，然后用onnx推理就没有内存overflow的问题了。
