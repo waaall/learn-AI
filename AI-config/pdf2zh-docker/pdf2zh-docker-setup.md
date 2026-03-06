@@ -20,6 +20,10 @@ docker --version
 
 - [ollama](https://ollama.com)
 
+```bash
+ollama pull gemma3:27b-it-qat
+```
+
 ### 3. 拉取镜像
 
 ```bash
@@ -29,7 +33,17 @@ docker pull byaidu/pdf2zh
 docker pull awwaawwa/pdfmathtranslate-next
 ```
 
-## 二、创建数据目录
+### 版本区别 
+
+[next版](https://pdf2zh-next.com/getting-started/getting-started.html)和原版的区别：
+
+- 1.x 的 PDFMathTranslate（pdf2zh）更像“单体应用”：PDF 解析与排版、翻译器实现、配置、GUI、缓存、HTTP API 等都在同一仓库内。  
+
+- 2.x 的 PDFMathTranslate-next（pdf2zh-next）更像“编排与产品化层”：核心翻译能力下沉到 BabelDOC，自身重点放在可维护的配置系统、GUI、多语言文档、运行时隔离与事件流 API 等。
+
+## 二、启动服务
+
+### 创建数据目录
 
 建两个目录(可以自定义，但是要跟docker), windows 类似如下：
 
@@ -38,9 +52,7 @@ D:\pdf2zh\output
 D:\pdf2zh\cache
 ```
 
-
-### 三、启动容器
-
+### 启动容器
 ```bash
 # 严格模式启动
 docker run -d --name pdf2zh -p 7860:7860 -v D:\pdf2zh\output:/app/pdf2zh_files -v D:\pdf2zh\cache:/root/.cache --restart=always byaidu/pdf2zh
@@ -58,7 +70,7 @@ docker run -d --name pdf2zh -p 7860:7860 -v D:\pdf2zh\output:/app/pdf2zh_files -
 pdf2zh -i --compatible          兼容模式启动（如果要放弃有格式问题的翻译，则不需要这个）
 ```
 
-## 四、问题排查
+## 三、问题排查
 
 ### 查看容器
 
@@ -115,7 +127,7 @@ docker rm -f pdf2zh
 docker exec -it pdf2zh bash
 find / -name "*dual.pdf" 2>/dev/null
 ```
-## 五、使用方法
+## 四、使用方法
 
 1. 打开网页
 2. 上传 PDF
@@ -142,8 +154,7 @@ D:\pdf2zh\output
 
 翻译速度主要LLM速度有关，使用4090 &`gemma3:27b-it-qat` 模型 80tokens/s 的前提下大约 10-20s/页）。
 
-## 六、更新版本
-
+## 五、更新版本
 ```bash
 docker rm -f pdf2zh
 docker pull byaidu/pdf2zh
