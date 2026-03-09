@@ -1,4 +1,4 @@
-﻿# LLM 工具调用协议：技术深度剖析
+# LLM 工具调用协议：技术深度剖析
 
 **工具调用（Tool Calling）是把 LLM 从文本生成器转变为能够与真实世界交互的自治代理的关键机制。** 几乎所有主流 AI 编码助手、企业聊天机器人和 Agent 工作流，都依赖一个看似简单的协议：模型输出描述函数调用的结构化 JSON，应用执行该调用，然后把结果回传到对话上下文。本文会逐层拆解该协议的工作方式，从 API 线格式和模型训练，到 Vercel AI SDK 这类 SDK 抽象，再到 OpenCode、Claude Code、Aider 等开源编码工具中的生产实践。对于在 2025 年及以后构建 AI 应用的开发者，理解这些层次至关重要。
 
@@ -290,3 +290,111 @@ MCP 工具由 `name`、`description`、`inputSchema`（JSON Schema）定义。�
 工具调用生态已经在两点上达成收敛：JSON Schema 成为参数定义的通用语言，请求-执行-回传循环成为通用架构。但在执行策略上，实践仍显著分化。Aider 关于“代码编辑中纯文本优于结构化 JSON”的结论、Cursor 的神经 Apply 模型、Anthropic 的编程式工具调用，都在挑战“标准工具调用 API 始终最优”的假设。
 
 有三个关键洞见。第一，**最佳工具格式取决于模型训练目标**，而不取决于对开发者来说看起来是否“更结构化”。第二，**审批模式已经成为架构组成部分**，几乎所有严肃框架都提供人在环闸门，因为自治执行必须有信任边界。第三，**MCP 正在赢得集成层**，它在主要工具中的普及说明标准化的工具发现与调用会像 HTTP 之于 Web 服务一样基础。对实践者而言，建议很明确：理解协议层而不只停留在 SDK 抽象；从第一天就实现审批闸门；将工具构建为 MCP server 以获得最大复用；在最终确定架构前，针对你的具体场景同时基准测试结构化与非结构化方案。
+
+
+# 代码式工具调用
+
+- [claude programmatic-tool-calling](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling)
+- [Executable Code Actions Elicit Better LLM Agents](https://openreview.net/pdf?id=jJ9BoXAfFa)
+
+这两个其实都在把“工具调用（tool calling / tool use）”从**一回合一个 JSON 函数调用**，推进到“**让模型写可执行代码（executable code）来编排动作**”的范式。它们的共同点是：**把中间步骤搬到代码里跑**，把 LLM 从“每一步都要重新采样/重新推理”里解放出来；差异在于“谁提供执行环境、工具如何暴露、以及中间观测是否回流到模型”。
+
+---
+
+## 1) Claude 的 Programmatic Tool Calling 是什么新东西
+
+传统 tool calling：Claude 输出一次 `tool_use`（JSON 参数），你执行工具，返回 `tool_result`，Claude 再读结果、再决定下一步……**每个工具调用都要一次模型推理回合**。
+
+**Programmatic tool calling（PTC）**：Claude 先写一段 Python，在 **code execution sandbox** 里运行；代码里可以 `await tool(...)` 反复调用你的工具、做循环/过滤/聚合。执行到需要工具结果时，**code execution 暂停并返回 `tool_use` block**，你回 `tool_result`，代码继续跑；关键在于：**中间工具结果不会被塞进 Claude 的上下文窗口**，最终只把“代码执行后的最终输出”交给 Claude 继续推理。([Claude](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling?utm_source=chatgpt.com "Programmatic tool calling - Claude API Docs"))
+
+Anthropic 文档把它的主要收益写得很直白：
+
+- **降延迟**：多工具工作流不必每一步都重新采样模型（少很多 LLM 回合）。([Claude](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling?utm_source=chatgpt.com "Programmatic tool calling - Claude API Docs"))
+    
+- **省 token / 降上下文污染**：在代码里先过滤、统计，只把“少量关键信息”回传给模型。([Claude](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling?utm_source=chatgpt.com "Programmatic tool calling - Claude API Docs"))
+    
+- 在 BrowseComp / DeepSearchQA 这类多步检索评测里，“加上 PTC”被描述为关键因素。([Claude](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling?utm_source=chatgpt.com "Programmatic tool calling - Claude API Docs"))
+    
+
+它还引入了几个很工程化的新概念：
+
+- `allowed_callers`: 明确某个工具只能被 `direct`（传统方式）调用，还是只能在 `code_execution_...` 里被代码调用。([Claude](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling?utm_source=chatgpt.com "Programmatic tool calling - Claude API Docs"))
+    
+- 容器生命周期：默认每个 session 一个 container，可复用；闲置大约 4.5 分钟会过期，需要注意 `expires_at`。([Claude](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling?utm_source=chatgpt.com "Programmatic tool calling - Claude API Docs"))
+    
+- 限制：例如 **`strict: true` 的 structured outputs 工具不支持 programmatic calling**；MCP connector 提供的工具也暂不支持 programmatic 调用等。([Claude](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling?utm_source=chatgpt.com "Programmatic tool calling - Claude API Docs"))
+    
+- 安全提醒：工具结果是字符串，可能携带可被执行环境“解释/执行”的内容，要防 code injection。([Claude](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling?utm_source=chatgpt.com "Programmatic tool calling - Claude API Docs"))
+    
+
+一句话：**PTC 是“在 Claude API 里把工具暴露成可 await 的函数，让模型写代码来编排调用”，同时把中间数据留在沙箱里而不是喂回模型。**([Claude](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling?utm_source=chatgpt.com "Programmatic tool calling - Claude API Docs"))
+
+---
+
+## 2) 论文 CodeAct（Executable Code Actions…）在讲什么新方式
+
+这篇论文的主张更“范式层”：
+
+- 传统 agent action 常见是 **Text/JSON**（比如 ReAct + JSON tool calls），但 action space 受限：工具集合固定、组合能力弱（难写循环/复合逻辑）、多步依赖表达笨重。([Science Explorer](https://scixplorer.org/abs/2024arXiv240201030W/abstract?utm_source=chatgpt.com "Executable Code Actions Elicit Better LLM Agents - Science Explorer Abstract"))
+    
+- 提出 **CodeAct**：让 agent 的“动作”统一用**可执行 Python 代码**表示，并配一个 Python interpreter（执行器）。代码可以调用工具、处理异常、根据新 observation 动态修正动作（multi-turn）。([Science Explorer](https://scixplorer.org/abs/2024arXiv240201030W/abstract?utm_source=chatgpt.com "Executable Code Actions Elicit Better LLM Agents - Science Explorer Abstract"))
+    
+- 实验上：在 API-Bank 与新基准 M³ToolEval 上，CodeAct 相对 Text/JSON 有“最高约 20% 成功率提升”的结论；还构造了 7k 多轮数据 CodeActInstruct，并训练了 CodeActAgent。([Science Explorer](https://scixplorer.org/abs/2024arXiv240201030W/abstract?utm_source=chatgpt.com "Executable Code Actions Elicit Better LLM Agents - Science Explorer Abstract"))
+    
+
+从 repo 实现看，它基本就是把“解释器 + 容器化执行 + 多轮交互”做成可落地系统组件：CodeActAgent 需要一个 code execution engine（每个会话一个 docker container / Jupyter kernel），LLM 产出代码，执行器把结果/报错回传，模型可以自 debug。([GitHub](https://github.com/xingyaoww/code-act?utm_source=chatgpt.com "GitHub - xingyaoww/code-act: Official Repo for ICML 2024 paper \"Executable Code Actions Elicit Better LLM Agents\" by Xingyao Wang, Yangyi Chen, Lifan Yuan, Yizhe Zhang, Yunzhu Li, Hao Peng, Heng Ji."))
+
+一句话：**CodeAct 把 action 表达从 JSON 工具调用升级为“代码即动作（code-as-action）”，让组合、循环、调试成为动作空间的一部分。**([Science Explorer](https://scixplorer.org/abs/2024arXiv240201030W/abstract?utm_source=chatgpt.com "Executable Code Actions Elicit Better LLM Agents - Science Explorer Abstract"))
+
+---
+
+## 3) 两者的关系：非常像，但侧重点不同
+
+它们共享同一个大趋势：**用“可执行中间表示（executable intermediate representation）”取代“扁平 JSON action”。**
+
+但两者有明显差别：
+
+### A. 执行与产品形态
+
+- **Claude PTC**：是 Anthropic 在其 API 里提供的“托管式”模式（code execution + tool calling 协议），你用 `allowed_callers` 把工具暴露给 code execution。([Claude](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling?utm_source=chatgpt.com "Programmatic tool calling - Claude API Docs"))
+    
+- **CodeAct**：是一个更通用的 research 范式：任何 LLM + interpreter 都能实现；论文还做了指令微调数据/模型，让模型更擅长“写可执行动作”。([Science Explorer](https://scixplorer.org/abs/2024arXiv240201030W/abstract?utm_source=chatgpt.com "Executable Code Actions Elicit Better LLM Agents - Science Explorer Abstract"))
+    
+
+### B. 中间观测（observations）回流策略
+
+- **PTC**：强烈强调“中间工具结果不进上下文，只把最终输出给模型”，避免上下文被大数据污染。([Claude](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling?utm_source=chatgpt.com "Programmatic tool calling - Claude API Docs"))
+    
+- **CodeAct**：更强调“执行结果/错误信息是 observation”，允许模型基于这些观测自我修正与继续行动（更像把错误栈当反馈信号）。([Science Explorer](https://scixplorer.org/abs/2024arXiv240201030W/abstract?utm_source=chatgpt.com "Executable Code Actions Elicit Better LLM Agents - Science Explorer Abstract"))
+    
+
+### C. 约束与安全边界
+
+- JSON tool calls 的优势是：**更容易 schema 校验、更容易做 allowlist、审计也更直观**。
+    
+- code-as-action 的优势是：**组合能力强、能写循环/分支/数据处理、能把确定性计算交给解释器**；代价是：**安全面更大、需要强沙箱与输出净化**。Claude 文档也专门提示了 tool result 的 code injection 风险。([Claude](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling?utm_source=chatgpt.com "Programmatic tool calling - Claude API Docs"))
+    
+
+---
+
+## 4) 应该怎么“看”这类新工具调用：把它当成 3 个设计选择
+
+### 选择 1：让模型“调用工具”，还是让模型“写一个会调用工具的程序”
+
+- 如果你的工作流是 1～2 次调用、参数简单：传统 tool calling（JSON）更稳、更可控。
+    
+- 如果是 10～100 次调用、需要循环/过滤/聚合：PTC/CodeAct 这种“程序化编排”通常更省钱更快。([Claude](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling?utm_source=chatgpt.com "Programmatic tool calling - Claude API Docs"))
+
+### 选择 2：中间数据要不要回流到模型上下文
+
+- 想要**最小上下文 + 最小泄露 + 最少 token**：倾向 PTC 这种“中间不回流，只回 summary”。([Claude](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling?utm_source=chatgpt.com "Programmatic tool calling - Claude API Docs"))
+    
+- 想要**让模型通过错误栈/执行反馈自我纠错**：倾向 CodeAct 这种“执行反馈就是 observation”。([Science Explorer](https://scixplorer.org/abs/2024arXiv240201030W/abstract?utm_source=chatgpt.com "Executable Code Actions Elicit Better LLM Agents - Science Explorer Abstract"))
+
+
+### 选择 3：你愿意承担多少“执行安全”复杂度
+
+- code-as-action 几乎必然要求：容器沙箱、资源配额、网络 egress 控制、允许的库/系统调用限制、日志审计、对工具输出做净化。Claude 文档也强调要验证工具结果，避免注入。([Claude](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling?utm_source=chatgpt.com "Programmatic tool calling - Claude API Docs"))
+    
+
+---
