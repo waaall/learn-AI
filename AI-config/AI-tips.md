@@ -299,8 +299,8 @@ curl -fsSL https://opencode.ai/install | bash
 # mac推荐安装
 brew install anomalyco/tap/opencode
 
-# windows 推荐安装
-choco install opencode
+# windows 最好在 wsl 里安装
+curl -fsSL https://opencode.ai/install | bash
 
 # npm 安装
 npm install -g opencode-ai
@@ -342,6 +342,30 @@ opencode
 # 输入api key, 选择模型供应商和模型
 ```
 
+#### opencode ollama
+
+- [opencode ollama](https://docs.ollama.com/integrations/opencode)
+
+Add a configuration block to `~/.config/opencode/opencode.json`:
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama",
+      "options": {
+        "baseURL": "http://localhost:11434/v1"
+      },
+      "models": {
+        "qwen3-coder": {
+          "name": "qwen3-coder"
+        }
+      }
+    }
+  }
+}
+```
 
 ## MCP
 
