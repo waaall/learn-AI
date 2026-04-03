@@ -98,6 +98,19 @@ ANTHROPIC_SMALL_FAST_MODEL=Pro/zai-org/GLM-4.7
 ##### 3.3 使用
 终端进入代码文件夹然后输入claude 或者 vscode 安装claude code插件打开
 
+##### 一键启动
+上述环境变量可能会设置不成功，那就直接一键启动：
+
+linux & mac
+```bash
+ANTHROPIC_AUTH_TOKEN=ollama ANTHROPIC_BASE_URL=http://192.168.50.50:11434 ANTHROPIC_API_KEY="" claude --model gemma4:26b
+```
+
+windows
+```powershell
+$env:ANTHROPIC_AUTH_TOKEN="ollama"; $env:ANTHROPIC_BASE_URL="http://192.168.50.50:11434"; $env:ANTHROPIC_API_KEY=""; claude --model gemma4:26b
+```
+
 ### 二、Skill & subagents
 
 - [官方的skills](https://github.com/anthropics/skills/tree/main)
