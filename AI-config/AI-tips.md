@@ -1,3 +1,46 @@
+# AI agents tools
+
+
+## 爬虫
+
+### [firecrawl](https://github.com/firecrawl/firecrawl)
+
+这个 firecrawl 不是开箱即用的，而是用于嵌入 Agents 的
+
+### [crawl4ai](https://github.com/unclecode/crawl4ai)
+
+这个能力一般
+
+```sh
+docker pull unclecode/crawl4ai:latest
+
+cat > .llm.env <<'EOF'
+LLM_PROVIDER=ollama/gemma4:26b
+LLM_BASE_URL=http://192.168.50.50:11434
+LLM_TEMPERATURE=0.2
+EOF
+
+# windows powershell 用下面这个
+# "LLM_PROVIDER=ollama/gemma4:26b`nLLM_BASE_URL=http://192.168.50.50:11434`nLLM_TEMPERATURE=0.2" | Out-File -FilePath .\.llm.env -Encoding utf8
+
+docker rm -f crawl4ai
+docker run -d -p 11235:11235 --name crawl4ai --shm-size=1g --env-file .llm.env unclecode/crawl4ai:latest
+```
+
+### [browser-use](https://github.com/browser-use/browser-use)
+
+
+##
+
+### [opencli](https://github.com/jackwener/opencli)
+
+
+## 转 markdown
+
+### [markitdown](https://github.com/microsoft/markitdown)
+
+### [MinerU](https://github.com/opendatalab/MinerU)
+
 
 # vibe coding
 
@@ -147,12 +190,12 @@ $env:ANTHROPIC_AUTH_TOKEN="ollama"; $env:ANTHROPIC_BASE_URL="http://192.168.50.5
     - 说明里写死：你们项目用哪套 ESLint/Prettier 规则、命名风格、分层结构。
     - 可以附一个脚本：自动跑 linter / formatter，把结果喂给 Claude 再做解释和重构建议。
     - 效果：每次说“帮我按团队规范整理这个文件”，Claude 会自动套同一套流程。
-    
+
 2. **“自动写单元测试” Skill**
     - 说明：只针对某语言 + 某测试框架（比如 Jest / Vitest / pytest），给出测试结构模板。
     - 脚本：扫描当前 diff 或函数签名，帮你生成待测函数列表，再请 Claude 按模板写测试。
     - 以后你只要说“用测试生成 Skill 覆盖这次改动”，就走一遍固定流程。
-    
+
 3. **“提交信息生成 + 变更日志” Skill**
     - 说明：规定 commit message 格式（Conventional Commits 等）和 changelog 样式。
     - 脚本：读取 git diff，让 Claude 先结构化归类，再生成符合规范的 commit / changelog。
@@ -169,18 +212,18 @@ $env:ANTHROPIC_AUTH_TOKEN="ollama"; $env:ANTHROPIC_BASE_URL="http://192.168.50.5
   - [awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents)
 
 官方文档把 subagent 描述成：**预先配置好的专职 AI 助手**，有自己的系统提示词、工具权限、独立上下文窗口，Claude 会在合适的时候把任务分派给它。
-  
+
 核心特性：
 
 - 每个 sub agent 有：
     - 独立的“人设 / 角色”和解决问题的风格（通过 system prompt 定义）。
     - 自己的上下文窗口，与主对话隔离。
     - 一组特定工具权限（能不能改文件、能不能访问 MCP server 等）。
-    
+
 - 存放位置：
     - 项目级：.claude/agents/ → 只对当前 repo 生效。
     - 用户级：~/.claude/agents/ → 所有项目通用。
-        
+
 - 使用方式：
     - 自动：Claude 觉得这个任务更适合某个 subagent，会自行“派工”过去。
     - 手动：你可以在命令里点名，比如“让 test-runner 子 agent 修这个挂掉的测试”。
@@ -191,17 +234,17 @@ $env:ANTHROPIC_AUTH_TOKEN="ollama"; $env:ANTHROPIC_BASE_URL="http://192.168.50.5
     - 职责：只负责需求分析与架构设计。
     - 权限：只读代码库，不能修改文件。
     - 产出：架构草图、模块划分、接口设计、技术选型建议。
-        
+
 2. **实现工程师 agent**
     - 职责：按照架构说明具体写代码。
     - 权限：可以创建/修改源码文件；可以调用某些生成脚手架的命令。
     - 产出：实现代码 + 基本注释。
-    
+
 3. **测试工程师 agent**
     - 职责：为目标模块或 PR 写/补测试。
     - 权限：只改 test 目录；可以运行测试命令并解析输出。
     - 产出：测试代码 + 覆盖率建议。
-    
+
 4. **文档撰写 agent**
     - 职责：从代码注释、接口定义生成 README / ADR / API 文档。
     - 权限：读代码、docs 目录；可以写 markdown 文档。
@@ -224,7 +267,7 @@ Plugin 是 **一个可安装/分享的扩展包**，里面可以打包很多东�
     - 一组 Skills（比如“文档工具包”）。
     - Hook：在“git commit 前”、“测试失败后”之类的时机自动触发某些动作。
     - MCP servers：连接数据库、CI、外部 API 等。
-    
+
 - 分发方式：
     - 从公共 marketplace 安装（社区已经有很多针对开发、DevOps、数据等场景的插件集）。
     - 你们公司自己维护一个私有 marketplace，给全公司发统一的插件套装。
@@ -236,9 +279,9 @@ Plugin 是 **一个可安装/分享的扩展包**，里面可以打包很多东�
         - 项目常用 subagents（架构师、测试、文档）。
         - 一组 Skills（规范 PR、生成 changelog、内部 API 调用方法等）。
         - 几个 slash 命令（如 /setup-project 自动拉好依赖、脚手架、基础配置）。
-    
+
     - 好处：新同事装一个插件，就拥有和老同事一样的 AI 开发环境。
-    
+
 2. **Git / CI / issue 系统集成插件**
     - MCP tools：连到 GitHub / GitLab、CI/CD（GitHub Actions、CircleCI 等）、Jira/Linear 等。
     - Subagents：例如“Release Manager agent”专门负责看 CI 状态、生成 release note、更新 issue 状态。
