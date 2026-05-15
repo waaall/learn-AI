@@ -15,11 +15,10 @@ services:
     shm_size: "32gb"
     environment:
       - TZ=Asia/Shanghai
-      - VLLM_USE_FLASHINFER_MOE_FP8=1
-      - VLLM_FLASHINFER_MOE_BACKEND=latency
+      # RTX PRO 6000 / SM120 下，Qwen3.6 FP8 MoE 强制 FlashInfer 会触发后端量化格式不支持
+      # 保持关闭，让命令行的 --moe-backend triton 接管 MoE 专家计算
+      - VLLM_USE_FLASHINFER_MOE_FP8=0
       - VLLM_USE_DEEP_GEMM=0
-      - VLLM_USE_TRTLLM_ATTENTION=0
-      - VLLM_ATTENTION_BACKEND=FLASH_ATTN
 
     command:
       - "/models/Qwen3.6-35B-A3B-FP8"
@@ -50,6 +49,9 @@ services:
       - "0.95"
       - "--enable-prefix-caching"
       - "--enable-chunked-prefill"
+      # RTX PRO 6000 / Blackwell 上避开当前不兼容的 FlashInfer FP8 MoE 路径
+      - "--moe-backend"
+      - "triton"
 
       # # KV cache 用 FP8，省显存，提升并发承载
       # # 可能有bug(模型不支持校准精度会有问题)
