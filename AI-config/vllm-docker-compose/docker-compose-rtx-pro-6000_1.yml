@@ -15,8 +15,8 @@ services:
     shm_size: "32gb"
     environment:
       - TZ=Asia/Shanghai
-      # RTX PRO 6000 / SM120 下，Qwen3.6 FP8 MoE 强制 FlashInfer 会触发后端量化格式不支持
-      # 保持关闭，让命令行的 --moe-backend triton 接管 MoE 专家计算
+      # RTX PRO 6000 / SM_120 下，Qwen3.6 FP8 MoE 强制 FlashInfer 会触发后端量化格式不支持
+      # DeepGEMM 是 SM_100 上 block FP8 的最优后端，但 RTX PRO 6000 是 SM_120，DeepGEMM 目前不支持，必须用 Triton 后端
       - VLLM_USE_FLASHINFER_MOE_FP8=0
       - VLLM_USE_DEEP_GEMM=0
 
@@ -40,16 +40,18 @@ services:
 
       # 上下文 + 并发设置
       - "--max-model-len"
-      - "16384"
+      - "32768"
       - "--max-num-seqs"
       - "8"
       - "--max-num-batched-tokens"
       - "65536"
+      # 三模型同卡共享：LLM 77GB + Embed 4B 11GB + Whisper turbo 4GB + 系统 4GB
       - "--gpu-memory-utilization"
-      - "0.95"
+      - "0.80"
       - "--enable-prefix-caching"
       - "--enable-chunked-prefill"
-      # RTX PRO 6000 / Blackwell 上避开当前不兼容的 FlashInfer FP8 MoE 路径
+      # RTX PRO 6000 是 SM_120（工作站 Blackwell, GB202），DeepGEMM 只支持 SM_90/SM_100，
+      # 这里只能用 Triton（也是 SM_120 上 block FP8 的实际最优后端）
       - "--moe-backend"
       - "triton"
 

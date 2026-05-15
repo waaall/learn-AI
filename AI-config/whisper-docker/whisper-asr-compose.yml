@@ -19,15 +19,19 @@ services:
       MODEL_IDLE_TIMEOUT: "0"  # 0 = 常驻；也可以改成 300 之类让它空闲卸载
 
     volumes:
-      # 把本地下载好的目录挂载到容器内
-      - "D:/dev_software/AI_models/whisper/faster-whisper-large-v3-turbo-int8-ct2:/models/faster-whisper-large-v3-turbo-int8-ct2:ro"
+      # 模型目录挂载到容器内（Linux 路径；请先用 huggingface-cli 下载到此位置）
+      - "~/.cache/huggingface/faster-whisper-large-v3-turbo-int8-ct2:/models/faster-whisper-large-v3-turbo-int8-ct2:ro"
 
     restart: unless-stopped
+    gpus: all
 
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+    networks:
+      llm-net:
+        aliases: # http://whisper-asr:9000 可在容器网络内访问
+          - whisper-asr
+
+# external 需要 docker network create llm-net；或与其他 compose 共用同一外部网络
+networks:
+  llm-net:
+    external: true
+    name: llm-net
