@@ -407,6 +407,23 @@ Add a configuration block to `~/.config/opencode/opencode.json`:
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
+    "vllm-local": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "vLLM Local",
+      "options": {
+        "baseURL": "http://127.0.0.1:8123/v1",
+        "apiKey": "EMPTY"
+      },
+      "models": {
+        "Qwen3.6-35B-A3B-FP8": {
+          "name": "Qwen3.6 35B A3B FP8",
+          "limit": {
+            "context": 65536,
+            "output": 8192
+          }
+        }
+      }
+    },
     "ollama": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "Ollama",
@@ -415,7 +432,11 @@ Add a configuration block to `~/.config/opencode/opencode.json`:
       },
       "models": {
         "qwen3-coder": {
-          "name": "qwen3-coder"
+          "name": "qwen3-coder",
+          "limit": {
+            "context": 65536,
+            "output": 8192
+          }
         }
       }
     }
