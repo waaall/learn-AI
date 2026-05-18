@@ -40,7 +40,7 @@ services:
 
       # 上下文 + 并发设置
       - "--max-model-len"
-      - "32768"
+      - "65536"
       - "--max-num-seqs"
       - "8"
       - "--max-num-batched-tokens"
