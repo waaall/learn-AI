@@ -1,0 +1,35 @@
+name: kokoro-fastapi-zh-gpu
+
+services:
+  kokoro-zh-gpu:
+    image: ghcr.io/hsiang-han/kokoro-fastapi-zh-gpu:latest
+    # 国内源 ghcr.nju.edu.cn/hsiang-han/kokoro-fastapi-zh-gpu:latest
+    container_name: kokoro-zh-gpu
+    gpus: all
+    volumes:
+      - ${HOME}/.cache/huggingface/Kokoro-82M-v1.1-zh:/app/api/src/models/v1_1_zh:ro
+      - ${HOME}/.cache/huggingface/Kokoro-82M-v1.1-zh/voices:/app/api/src/voices/v1_1_zh:ro
+    ports:
+        - "8880:8880"
+    environment:
+        - PYTHONPATH=/app:/app/api
+        - USE_GPU=true
+        - PYTHONUNBUFFERED=1
+        - REPO_ID=hexgrad/Kokoro-82M-v1.1-zh
+        - DEFAULT_VOICE=zf_094
+        - KOKORO_V1_FILE=v1_1_zh/kokoro-v1_1-zh.pth
+        - VOICES_DIR=/app/api/src/voices/v1_1_zh
+        - DEFAULT_VOICE_CODE=z
+        - API_LOG_LEVEL=DEBUG
+
+    restart: unless-stopped
+    networks:
+      llm-net:
+        aliases: # http://kokoro-zh-gpu:8880 可在容器网络内访问
+          - kokoro-zh-gpu
+
+# external 需要 docker network create llm-net；或与其他 compose 共用同一外部网络
+networks:
+  llm-net:
+    external: true
+    name: llm-net

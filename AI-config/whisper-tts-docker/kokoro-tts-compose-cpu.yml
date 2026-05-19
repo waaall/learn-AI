@@ -1,0 +1,28 @@
+name: kokoro-fastapi-cpu
+
+services:
+  kokoro-tts:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
+    # 国内源 ghcr.nju.edu.cn/remsky/kokoro-fastapi-cpu:latest
+    container_name: kokoro-tts
+    pull_policy: if_not_present
+
+    ports:
+      - "8880:8880"
+
+    environment:
+      PYTHONPATH: /app:/app/api
+      USE_GPU: "false"
+      DEVICE_TYPE: cpu
+      PYTHONUNBUFFERED: "1"
+      API_LOG_LEVEL: DEBUG
+
+      # CPU / ONNX 优化参数，保留你原来的配置，根据实际CPU核心数调整
+      ONNX_NUM_THREADS: "16"
+      ONNX_INTER_OP_THREADS: "4"
+      ONNX_EXECUTION_MODE: parallel
+      ONNX_OPTIMIZATION_LEVEL: all
+      ONNX_MEMORY_PATTERN: "true"
+      ONNX_ARENA_EXTEND_STRATEGY: kNextPowerOfTwo
+
+    restart: unless-stopped

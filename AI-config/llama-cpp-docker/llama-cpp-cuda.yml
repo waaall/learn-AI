@@ -18,7 +18,7 @@ services:
       # 模型路径（根据实际情况修改）
       - /path/to/models:/models:ro
       # 可选：缓存目录
-      # - ~/.cache:/root/.cache
+      # - ${HOME}/.cache:/root/.cache
     environment:
       - TZ=Asia/Shanghai
       - CUDA_VISIBLE_DEVICES=all

@@ -7,9 +7,9 @@ services:
     restart: always
     volumes:
       # 宿主机模型目录 -> 容器内只读路径
-      - "~/.cache/huggingface/qwen36-35b-a3b-fp8:/models/Qwen3.6-35B-A3B-FP8:ro"
+      - "${HOME}/.cache/huggingface/qwen36-35b-a3b-fp8:/models/Qwen3.6-35B-A3B-FP8:ro"
       # # 可选：挂 HuggingFace cache（避免容器内重复下载 tokenizer/依赖）
-      # - "~/.cache/huggingface/_cache:/root/.cache/huggingface"
+      # - "${HOME}/.cache/huggingface/_cache:/root/.cache/huggingface"
     gpus: all
     ipc: host
     shm_size: "32gb"

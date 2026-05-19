@@ -1,0 +1,30 @@
+name: kokoro-fastapi-gpu
+
+services:
+  kokoro-tts:
+    image: ghcr.io/remsky/kokoro-fastapi-gpu:latest
+    # 国内源 ghcr.nju.edu.cn/remsky/kokoro-fastapi-gpu:latest
+    container_name: kokoro-tts
+    pull_policy: if_not_present
+    gpus: all
+    ports:
+      - "8880:8880"
+
+    environment:
+      PYTHONPATH: /app:/app/api
+      USE_GPU: "true"
+      PYTHONUNBUFFERED: "1"
+      API_LOG_LEVEL: INFO
+
+    restart: unless-stopped
+
+    networks:
+      llm-net:
+        aliases: # http://kokoro-tts:8880 可在容器网络内访问
+          - kokoro-tts
+
+# external 需要 docker network create llm-net；或与其他 compose 共用同一外部网络
+networks:
+  llm-net:
+    external: true
+    name: llm-net

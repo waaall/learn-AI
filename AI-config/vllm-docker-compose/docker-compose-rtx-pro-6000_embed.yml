@@ -7,7 +7,7 @@ services:
     restart: always
     volumes:
       # 宿主机模型目录 -> 容器内只读路径
-      - "~/.cache/huggingface/qwen3-embedding-4b:/models/Qwen3-Embedding-4B:ro"
+      - "${HOME}/.cache/huggingface/qwen3-embedding-4b:/models/Qwen3-Embedding-4B:ro"
     gpus: all
     ipc: host
     shm_size: "8gb"
