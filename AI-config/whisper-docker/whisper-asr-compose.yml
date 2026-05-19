@@ -8,11 +8,11 @@ services:
       ASR_ENGINE: "faster_whisper"
 
       # 把 ASR_MODEL 指向容器内的“模型目录”
-      ASR_MODEL: "/models/faster-whisper-large-v3-turbo-int8-ct2"
+      ASR_MODEL: "/models/faster-whisper-large-v3-turbo-ct2"
 
       # GPU + 量化
       ASR_DEVICE: "cuda"
-      ASR_QUANTIZATION: "int8"
+      ASR_QUANTIZATION: "float16"
 
       # 可选
       SAMPLE_RATE: "16000"
@@ -20,7 +20,8 @@ services:
 
     volumes:
       # 模型目录挂载到容器内（Linux 路径；请先用 huggingface-cli 下载到此位置）
-      - "~/.cache/huggingface/faster-whisper-large-v3-turbo-int8-ct2:/models/faster-whisper-large-v3-turbo-int8-ct2:ro"
+      # 注意：Compose 不展开 ~，用 ${HOME} 或绝对路径
+      - "${HOME}/.cache/huggingface/faster-whisper-large-v3-turbo-ct2:/models/faster-whisper-large-v3-turbo-ct2:ro"
 
     restart: unless-stopped
     gpus: all

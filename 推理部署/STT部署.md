@@ -13,7 +13,7 @@
 docker pull onerahmet/openai-whisper-asr-webservice:latest-gpu
 
 # 可以设置国内源
-hf download Zoont/faster-whisper-large-v3-turbo-int8-ct2 --local-dir your_path
+hf download deepdml/faster-whisper-large-v3-turbo-ct2 --local-dir your_path
 ```
 
 ### 启动容器
@@ -28,11 +28,11 @@ services:
       ASR_ENGINE: "faster_whisper"
 
       # 把 ASR_MODEL 指向容器内的“模型目录”
-      ASR_MODEL: "/models/faster-whisper-large-v3-turbo-int8-ct2"
+      ASR_MODEL: "/models/faster-whisper-large-v3-turbo-ct2"
 
       # GPU + 量化
       ASR_DEVICE: "cuda"
-      ASR_QUANTIZATION: "int8"
+      ASR_QUANTIZATION: "float16"
 
       # 可选
       SAMPLE_RATE: "16000"
@@ -40,7 +40,7 @@ services:
 
     volumes:
       # 把本地下载好的目录挂载到容器内
-      - "your-path/faster-whisper-large-v3-turbo-int8-ct2:/models/faster-whisper-large-v3-turbo-int8-ct2:ro"
+      - "your-path/faster-whisper-large-v3-turbo-ct2:/models/faster-whisper-large-v3-turbo-ct2:ro"
 
     restart: unless-stopped
 
@@ -124,7 +124,7 @@ curl -X POST "http://192.168.50.50:9000/asr?output=json&language=zh&vad_filter=t
 - 统一格式：优先 16kHz、单声道、PCM16（后端最省事）
 - chunk：20ms（320 samples@16k）到 100ms 都可，越小越低延迟但开销更大
 - 可选：用 Opus 压缩（省带宽），但后端要解码
-  
+
 ##### 2) 一个会话一个 WS
 
 - 建立 session_id
@@ -136,7 +136,7 @@ curl -X POST "http://192.168.50.50:9000/asr?output=json&language=zh&vad_filter=t
 - partial：显示在“灰字临时区”，每次替换而不是追加
 - final：追加到“正式文本区”，并清空临时区
 - final 触发 RAG：可以“自动触发”或“用户点发送”两种模式
-  
+
 #### 端点检测参数建议（决定体感）
 
 - 静音阈值：一般 300–700ms（中文问答场景 500ms 常用）
