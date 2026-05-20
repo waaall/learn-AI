@@ -2,7 +2,8 @@ name: kokoro-fastapi-zh-gpu
 
 services:
   kokoro-zh-gpu:
-    image: ghcr.io/hsiang-han/kokoro-fastapi-zh-gpu:latest
+    image: kokoro-fastapi-zh-gpu:local # 根据 dockerfile 自己构建的
+    # 正常下载的 ghcr.io/hsiang-han/kokoro-fastapi-zh-gpu:latest
     # 国内源 ghcr.nju.edu.cn/hsiang-han/kokoro-fastapi-zh-gpu:latest
     container_name: kokoro-zh-gpu
     gpus: all
@@ -12,6 +13,7 @@ services:
     ports:
         - "8880:8880"
     environment:
+        - DOWNLOAD_MODEL=false
         - PYTHONPATH=/app:/app/api
         - USE_GPU=true
         - PYTHONUNBUFFERED=1

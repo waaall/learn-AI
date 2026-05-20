@@ -5,7 +5,7 @@
 可以用python 或者docker ，有作者自己的镜像：
 
 - [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI)
-- [Kokoro-FastAPI-zh](https://github.com/hsiang-han/Kokoro-FastAPI-zh/tree/master)
+- [Kokoro-FastAPI-zh](https://github.com/waaall/Kokoro-FastAPI/tree/zh)
 
 #### 英文
 
@@ -31,18 +31,20 @@ docker pull ghcr.nju.edu.cn/remsky/kokoro-fastapi-gpu:latest
 
 #### 中文
 
-1. 下载镜像
+1. 构建镜像
+- [Kokoro-FastAPI-zh](https://github.com/waaall/Kokoro-FastAPI/tree/zh)
 
 ```bash
-# cpu
-docker pull ghcr.io/hsiang-han/kokoro-fastapi-zh-cpu:latest
-# 国内源 要注意 docker compose 对应也要改
-docker pull ghcr.nju.edu.cn/hsiang-han/kokoro-fastapi-zh-cpu:latest
+# 如果有网络问题，可以把 Dockerfile 中 ENV DOWNLOAD_MODEL=false 再自己下载模型
+docker build -f docker/gpu/Dockerfile -t kokoro-fastapi-zh-gpu:local .
+```
 
-# GPU
-docker pull ghcr.io/hsiang-han/kokoro-fastapi-zh-gpu:latest
-# 国内源 要注意 docker compose 对应也要改
-docker pull ghcr.nju.edu.cn/hsiang-han/kokoro-fastapi-zh-gpu:latest
+2. 使用镜像
+
+docker compose 见：[kokoro-tts-compose-zh-gpu.yml](AI-config/whisper-tts-docker/kokoro-tts-compose-zh-gpu.yml)
+
+```bash
+docker compose -f kokoro-tts-compose-zh-gpu.yml up -d
 ```
 
 
