@@ -50,6 +50,13 @@ services:
       # - "--uvicorn-log-level"
       # - "warning"
       # - "--disable-log-requests"
+    # 健康检查：vLLM 标准 /health 端点
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 300s  # 大模型加载需要时间，预留 5 分钟
     networks:
       llm-net:
         aliases: #  http://vllm:8000 可以容器网络内访问

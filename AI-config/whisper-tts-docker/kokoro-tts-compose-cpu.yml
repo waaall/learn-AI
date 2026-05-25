@@ -26,3 +26,11 @@ services:
       ONNX_ARENA_EXTEND_STRATEGY: kNextPowerOfTwo
 
     restart: unless-stopped
+
+    # 健康检查：容器内有 curl，调用 kokoro-fastapi 的 /health 端点
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8880/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s  # kokoro 82M 模型加载快，1 分钟足够

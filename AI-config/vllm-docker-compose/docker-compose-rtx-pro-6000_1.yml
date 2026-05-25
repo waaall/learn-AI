@@ -60,6 +60,14 @@ services:
       # - "--kv-cache-dtype"
       # - "fp8"
       # - "--calculate-kv-scales"
+
+    # 健康检查：vLLM 标准 /health 端点
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 600s  # 35B MoE FP8 加载较慢，预留 10 分钟
     networks:
       llm-net:
         aliases: #  http://vllm:8000 可以容器网络内访问

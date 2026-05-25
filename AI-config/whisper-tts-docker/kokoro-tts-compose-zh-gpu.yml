@@ -25,6 +25,14 @@ services:
         - API_LOG_LEVEL=DEBUG
 
     restart: unless-stopped
+
+    # 健康检查：容器内有 curl，调用 kokoro-fastapi 的 /health 端点
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8880/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s  # kokoro 82M 模型加载快，1 分钟足够
     networks:
       llm-net:
         aliases: # http://kokoro-zh-gpu:8880 可在容器网络内访问

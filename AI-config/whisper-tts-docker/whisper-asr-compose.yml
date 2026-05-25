@@ -26,6 +26,14 @@ services:
     restart: unless-stopped
     gpus: all
 
+    # 健康检查：容器内无 curl/wget，用 python urllib 探活
+    # 端点用 /openapi.json：纯数据接口，FastAPI 内部缓存，比 /docs 的 HTML 壳更轻
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9000/openapi.json', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s  # whisper turbo 模型加载预留 3 分钟
     networks:
       llm-net:
         aliases: # http://whisper-asr:9000 可在容器网络内访问
