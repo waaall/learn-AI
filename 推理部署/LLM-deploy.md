@@ -273,8 +273,65 @@ vllm是支持并发最好的，llama.cpp是支持平台最多的，ollama是最�
 - linux 需要先安装显卡驱动 和 nvidia-container-toolkit。比如ubuntu可以通过apt安装，但一般都会比较老，会有兼容性问题，去英伟达官方搜索。
 - windows需要安装nvidia驱动和wsl2(不建议在windows部署)
 
-### 查看vllm模型参数/状态/性能
 
+### vllm 参数
+
+#### gpu-memory-utilization
+
+vLLM 启动时会检查当前 free memory 是否足够，并通过 profile 计算能给 KV cache 留多少。所以不要让 gpu-memory-utilization * 总的 GPU 显存 大于所需要的 模型 + 常驻 buffer + KV cache 。这些大小可以用如下的指令推测：
+
+```bash
+docker logs vllm-qwen36-35b-a3b 2>&1 | grep -Ei "kv cache|gpu blocks|maximum concurrency|available memory|profile"
+(EngineCore pid=475) INFO 05-25 15:28:40 [gpu_model_runner.py:5920] Encoder cache will be initialized with a budget of 65536 tokens, and profiled with 4 image items of the maximum feature size.
+(EngineCore pid=475) INFO 05-25 15:35:14 [gpu_worker.py:462] Available KV cache memory: 16.42 GiB
+(EngineCore pid=475) INFO 05-25 15:35:14 [gpu_worker.py:477] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.8000 is equivalent to --gpu-memory-utilization=0.7989 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.8011. To disable, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=0.
+(EngineCore pid=475) INFO 05-25 15:35:14 [kv_cache_utils.py:1710] GPU KV cache size: 774,084 tokens
+(EngineCore pid=475) INFO 05-25 15:35:14 [kv_cache_utils.py:1711] Maximum concurrency for 65,536 tokens per request: 11.81x
+(EngineCore pid=475) INFO 05-25 15:35:21 [core.py:299] init engine (profile, create kv cache, warmup model) took 401.63 s (compilation: 98.54 s)
+
+docker logs vllm-qwen3-embed-4b 2>&1 | grep -Ei "kv cache|gpu blocks|maximum concurrency|available memory|profile"
+(EngineCore pid=374) INFO 05-25 15:29:28 [gpu_worker.py:462] Available KV cache memory: -6.54 GiB
+(EngineCore pid=374) INFO 05-25 15:29:28 [gpu_worker.py:477] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.1500 is equivalent to --gpu-memory-utilization=0.1480 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.1520. To disable, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=0.
+(EngineCore pid=374) ERROR 05-25 15:29:28 [core.py:1140] ValueError: No available memory for the cache blocks. Try increasing `gpu_memory_utilization` when initializing the engine. See https://docs.vllm.ai/en/latest/configuration/conserving_memory/ for more details.
+(EngineCore pid=374) ValueError: No available memory for the cache blocks. Try increasing `gpu_memory_utilization` when initializing the engine. See https://docs.vllm.ai/en/latest/configuration/conserving_memory/ for more details.
+(EngineCore pid=208) INFO 05-25 15:30:18 [gpu_worker.py:462] Available KV cache memory: 5.7 GiB
+(EngineCore pid=208) INFO 05-25 15:30:18 [gpu_worker.py:477] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.1500 is equivalent to --gpu-memory-utilization=0.1480 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.1520. To disable, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=0.
+(EngineCore pid=208) INFO 05-25 15:30:18 [kv_cache_utils.py:1710] GPU KV cache size: 41,504 tokens
+(EngineCore pid=208) INFO 05-25 15:30:18 [kv_cache_utils.py:1711] Maximum concurrency for 8,192 tokens per request: 5.07x
+(EngineCore pid=208) INFO 05-25 15:30:20 [core.py:299] init engine (profile, create kv cache, warmup model) took 12.33 s (compilation: 7.22 s)
+
+```
+
+
+
+
+`--gpu-memory-utilization 0.8` 在 vLLM 里**不是 "总固定占 0.8"**，它的语义是：
+
+> vLLM 自己能用的预算 ≈ `total_gpu_mem × 0.8 − 启动时刻 GPU 上其他进程已占用的显存`
+
+RTX PRO 6000 是 96G，所以预算上限 ≈ 76.8G。但你这张卡是三模型共用：
+
+| 场景 | 启动时刻其他模型已占 | vLLM 拿到的预算 | 观测显存 |
+|---|---|---|---|
+| vLLM 先起，干净卡 | ~0 | ~76G | **76G** ✓ |
+| Embed-4B 已加载 | ~11G | ~65G | **65G** ✓ |
+| Embed + Whisper 都在工作 | ~20G | ~56G | **56G** ✓ |
+
+这部分预算在启动时通过一次 profile_run 测出 `model + activation peak`，剩余的全部一次性预分配给 KV cache。所以一旦启起来就**不会再涨**，看到的浮动主要来自：
+
+1. **启动时其他进程占多少**（最大变量，正好解释你的 56/65/76）
+2. 运行时 activation buffer 的瞬时峰值（小，几百 MB 到几 GB）
+3. PyTorch caching allocator 不会主动还给 OS
+
+主要是vllm占了的显存不还回来，所以，原则如下：
+- 首先先理论计算所有服务的大致显存占用。
+- 然后单个服务启动测试 `docker logs <name> 2>&1 | grep -Ei "kv cache|gpu blocks|maximum concurrency|available memory|profile"` 显存分布，进一步确定每个服务的显存分配。
+- 不要让 gpu-memory-utilization * 总的 GPU 显存 大于所需要的 模型 + 常驻 buffer + KV cache。
+- 先启动固定占用显存的服务，再启动占用显存小的VLLM推理服务，最后启动占用显存大的VLLM推理服务。
+
+
+
+### 查看vllm服务参数/状态/性能
 
 #### 1. 查看 vLLM 运行时参数
 
@@ -702,7 +759,7 @@ chmod +x Ascend-cann-toolkit_8.3.RC1_linux-aarch64.run
 # 安装完成后，若显示后文信息，则说明软件安装成功：xxx install success
 source /usr/local/Ascend/ascend-toolkit/set_env.sh
 
-# 安装 cann-kernels 
+# 安装 cann-kernels
 chmod +x Ascend-cann-kernels-<chip_type>_<version>_linux.run
 ./Ascend-cann-kernels-310p_8.3.RC1_linux-aarch64.run --check
 
@@ -747,7 +804,7 @@ source /usr/local/Ascend/nnal/atb/set_env.sh
 echo '. /usr/local/Ascend/nnal/atb/set_env.sh' >> ~/.zshrc
 source ~/.zshrc
 ```
- 
+
 - SiP加速库：
 ```bash
 source /usr/local/Ascend/nnal/asdsip/set_env.sh

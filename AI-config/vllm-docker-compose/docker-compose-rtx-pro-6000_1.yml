@@ -40,14 +40,14 @@ services:
 
       # 上下文 + 并发设置
       - "--max-model-len"
-      - "65536"
+      - "98304"
       - "--max-num-seqs"
       - "8"
       - "--max-num-batched-tokens"
       - "65536"
-      # 三模型同卡共享：LLM 77GB + Embed 4B 11GB + Whisper turbo 4GB + 系统 4GB
+      # 这个模型 + 常驻 buffer占用大约 42GB + KV cache 64K * 8 大约 16GB = 60GB (最好先让Embeddings跑)
       - "--gpu-memory-utilization"
-      - "0.80"
+      - "0.70"
       - "--enable-prefix-caching"
       - "--enable-chunked-prefill"
       # RTX PRO 6000 是 SM_120（工作站 Blackwell, GB202），DeepGEMM 只支持 SM_90/SM_100，
@@ -67,7 +67,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 600s  # 35B MoE FP8 加载较慢，预留 10 分钟
+      start_period: 900s  # 35B MoE FP8 加载较慢，预留 15 分钟
     networks:
       llm-net:
         aliases: #  http://vllm:8000 可以容器网络内访问

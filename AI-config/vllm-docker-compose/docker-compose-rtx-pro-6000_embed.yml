@@ -34,11 +34,14 @@ services:
 
       # embedding 是单次 forward，可以开大批量提高吞吐
       - "--max-num-seqs"
-      - "64"
+      - "8"
 
-      # 4B BF16 权重约 8GB + workspace 约 3GB ≈ 11GB
+      - "--max-num-batched-tokens"
+      - "8192"
+
+      # 4B BF16 权重约 8GB + workspace 约 1GB + KV cache 8G
       - "--gpu-memory-utilization"
-      - "0.15"
+      - "0.2"
 
     # 健康检查：vLLM 标准 /health 端点
     healthcheck:
@@ -46,7 +49,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 120s  # embedding 模型较小，2 分钟足够
+      start_period: 300s  # embedding 模型较小，5 分钟
     networks:
       llm-net:
         aliases: # http://vllm-embed:8000 容器网络内访问
