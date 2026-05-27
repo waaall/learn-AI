@@ -19,9 +19,9 @@ services:
       MODEL_IDLE_TIMEOUT: "0"  # 0 = 常驻；也可以改成 300 之类让它空闲卸载
 
     volumes:
-      # 模型目录挂载到容器内（Linux 路径；请先用 huggingface-cli 下载到此位置）
-      # 注意：Compose 不展开 ~，用 ${HOME} 或绝对路径
-      - "${HOME}/.cache/huggingface/faster-whisper-large-v3-turbo-ct2:/models/faster-whisper-large-v3-turbo-ct2:ro"
+      # 模型目录挂载到容器内（请先用 huggingface-cli 下载到 ${AI_MODEL_ROOT} 下）
+      # 注意：Compose 不展开 ~，用 ${AI_MODEL_ROOT} 或绝对路径；AI_MODEL_ROOT 由同目录 .env 提供
+      - "${AI_MODEL_ROOT}/faster-whisper-large-v3-turbo-ct2:/models/faster-whisper-large-v3-turbo-ct2:ro"
 
     restart: unless-stopped
     gpus: all

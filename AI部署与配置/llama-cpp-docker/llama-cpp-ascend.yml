@@ -19,7 +19,7 @@ services:
       - /etc/ascend_install.info:/etc/ascend_install.info
       - /usr/local/Ascend/driver:/usr/local/Ascend/driver:ro
       - /root/.cache:/root/.cache
-      - /home/LLM_project/models/GUFF/qwen2.5-7b-fp16:/models:ro
+      - ${AI_MODEL_ROOT}/qwen2.5-7b-fp16:/models:ro
 
     entrypoint: ["/app/llama-server"]   # 如果 full 镜像入口不是 llama-server，就加这一行
 

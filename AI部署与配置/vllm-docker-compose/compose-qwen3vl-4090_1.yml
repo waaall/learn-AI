@@ -6,9 +6,9 @@ services:
       - "8124:8000"
     restart: always
     volumes:
-      - "D:/dev_software/AI_models/huggingface/Qwen3-VL-8B-Instruct-AWQ-4bit:/models/qwen3vl-awq:ro"
+      - "${AI_MODEL_ROOT}/Qwen3-VL-8B-Instruct-AWQ-4bit:/models/qwen3vl-awq:ro"
       # # 可选：挂 HuggingFace cache（避免容器内重复下载 tokenizer/依赖）
-      # - "D:/dev_software/AI_models/huggingface/_cache:/root/.cache/huggingface"
+      # - "${AI_HF_CACHE}:/root/.cache/huggingface"
     gpus: all
     ipc: host
     shm_size: "16gb"

@@ -8,8 +8,8 @@ services:
     container_name: kokoro-zh-gpu
     gpus: all
     volumes:
-      - ${HOME}/.cache/huggingface/Kokoro-82M-v1.1-zh:/app/api/src/models/v1_1_zh:ro
-      - ${HOME}/.cache/huggingface/Kokoro-82M-v1.1-zh/voices:/app/api/src/voices/v1_1_zh:ro
+      - ${AI_MODEL_ROOT}/Kokoro-82M-v1.1-zh:/app/api/src/models/v1_1_zh:ro
+      - ${AI_MODEL_ROOT}/Kokoro-82M-v1.1-zh/voices:/app/api/src/voices/v1_1_zh:ro
     ports:
         - "8880:8880"
     environment:

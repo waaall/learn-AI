@@ -15,10 +15,10 @@ services:
               count: all
               capabilities: [gpu]
     volumes:
-      # 模型路径（根据实际情况修改）
-      - /path/to/models:/models:ro
-      # 可选：缓存目录
-      # - ${HOME}/.cache:/root/.cache
+      # 模型路径：AI_MODEL_ROOT 由同目录 .env 提供（参考 AI-config/.env.example）
+      - ${AI_MODEL_ROOT}/your-model-dir:/models:ro
+      # 可选：HF 缓存目录
+      # - ${AI_HF_CACHE}:/root/.cache/huggingface
     environment:
       - TZ=Asia/Shanghai
       - CUDA_VISIBLE_DEVICES=all

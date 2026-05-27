@@ -7,9 +7,10 @@ services:
     restart: always
     volumes:
       # 宿主机模型目录 -> 容器内只读路径
-      - "${HOME}/.cache/huggingface/qwen36-35b-a3b-fp8:/models/Qwen3.6-35B-A3B-FP8:ro"
+      # 如果没有配置.env 那么 echo "AI_MODEL_ROOT=/mnt/hdd/agent_resources/huggingface" > .env
+      - "${AI_MODEL_ROOT}/qwen36-35b-a3b-fp8:/models/Qwen3.6-35B-A3B-FP8:ro"
       # # 可选：挂 HuggingFace cache（避免容器内重复下载 tokenizer/依赖）
-      # - "${HOME}/.cache/huggingface/_cache:/root/.cache/huggingface"
+      # - "${AI_HF_CACHE}:/root/.cache/huggingface"
     gpus: all
     ipc: host
     shm_size: "32gb"
