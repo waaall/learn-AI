@@ -41,14 +41,14 @@ services:
 
       # 上下文 + 并发设置
       - "--max-model-len"
-      - "98304"
+      - "81920"
       - "--max-num-seqs"
       - "8"
       - "--max-num-batched-tokens"
       - "65536"
-      # 这个模型 + 常驻 buffer占用大约 42GB + KV cache 64K * 8 大约 16GB = 60GB (最好先让Embeddings跑)
+      # 这个模型 + 常驻 buffer占用大约 42GB + KV cache 64K * 8 大约 14GB = 56GB (最好先让Embeddings跑)
       - "--gpu-memory-utilization"
-      - "0.70"
+      - "0.60"
       - "--enable-prefix-caching"
       - "--enable-chunked-prefill"
       # RTX PRO 6000 是 SM_120（工作站 Blackwell, GB202），DeepGEMM 只支持 SM_90/SM_100，

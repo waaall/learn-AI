@@ -1,0 +1,130 @@
+INFO:     192.168.50.164:14387 - "POST /tasks HTTP/1.1" 202 Accepted
+2026-06-05 01:33:19.153 | INFO     | mineru.utils.engine_utils:get_vlm_engine:34 - Using vllm-async-engine as the inference engine for VLM.
+2026-06-05 01:33:20.190 | INFO     | mineru.backend.hybrid.hybrid_analyze:aio_doc_analyze:886 - Hybrid processing-window run. page_count=69, window_size=64, total_windows=2
+2026-06-05 01:33:20.190 | INFO     | mineru.backend.hybrid.hybrid_analyze:get_batch_ratio:683 - hybrid batch ratio (auto, vram=95GB): 16
+2026-06-05 01:33:21.075373356 [W:onnxruntime:Default, cpuid_info.cc:95 LogEarlyWarning] Unknown CPU vendor. cpuinfo_vendor value: 16
+INFO:     192.168.50.164:13113 - "GET /tasks/a9f8886b-60dd-4cdf-a469-f55ce966b395 HTTP/1.1" 200 OK
+INFO:     192.168.50.164:2788 - "GET /tasks/a9f8886b-60dd-4cdf-a469-f55ce966b395 HTTP/1.1" 200 OK
+2026-06-05 01:33:27.011 | INFO     | mineru.backend.hybrid.hybrid_analyze:aio_doc_analyze:907 - Hybrid processing window 1/2: pages 1-64/69 (64 pages)
+INFO:     192.168.50.164:1934 - "GET /tasks/a9f8886b-60dd-4cdf-a469-f55ce966b395 HTTP/1.1" 200 OK
+INFO:     192.168.50.164:14339 - "GET /tasks/a9f8886b-60dd-4cdf-a469-f55ce966b395 HTTP/1.1" 200 OK
+INFO:     192.168.50.164:5991 - "GET /tasks/a9f8886b-60dd-4cdf-a469-f55ce966b395 HTTP/1.1" 200 OK
+INFO:     192.168.50.164:9730 - "GET /tasks/a9f8886b-60dd-4cdf-a469-f55ce966b395 HTTP/1.1" 200 OK
+INFO:     192.168.50.164:5695 - "GET /tasks/a9f8886b-60dd-4cdf-a469-f55ce966b395 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58162 - "GET /health HTTP/1.1" 200 OK
+Two Step Extraction: 100%|██████████| 64/64 [00:17<00:00,  3.76it/s]
+INFO:     192.168.50.164:2596 - "GET /tasks/a9f8886b-60dd-4cdf-a469-f55ce966b395 HTTP/1.1" 200 OK
+Layout Predict: 100%|██████████| 64/64 [00:03<00:00, 18.94it/s]
+INFO:     192.168.50.164:5701 - "GET /tasks/a9f8886b-60dd-4cdf-a469-f55ce966b395 HTTP/1.1" 200 OK
+MFR Predict: 100%|██████████| 4/4 [00:01<00:00,  2.02it/s]
+INFO:     192.168.50.164:4367 - "GET /tasks/a9f8886b-60dd-4cdf-a469-f55ce966b395 HTTP/1.1" 200 OK
+INFO:     192.168.50.164:6257 - "GET /tasks/a9f8886b-60dd-4cdf-a469-f55ce966b395 HTTP/1.1" 200 OK
+OCR-det: 100%|██████████| 31/31 [00:05<00:00,  5.36it/s]
+INFO:     192.168.50.164:1511 - "GET /tasks/a9f8886b-60dd-4cdf-a469-f55ce966b395 HTTP/1.1" 200 OK
+Processing pages:  91%|█████████▏| 63/69 [00:04<00:00, 14.75it/s]2026-06-05 01:34:02.207 | INFO     | mineru.backend.hybrid.hybrid_analyze:aio_doc_analyze:907 - Hybrid processing window 2/2: pages 65-69/69 (5 pages)
+
+Two Step Extraction: 100%|██████████| 5/5 [00:03<00:00,  1.40it/s]9-f55ce966b395 HTTP/1.1" 200 OK
+Layout Predict: 100%|██████████| 5/5 [00:00<00:00, 14.37it/s]it/s]
+MFR Predict: 100%|██████████| 1/1 [00:00<00:00,  2.65it/s]/s]
+OCR-det: 100%|██████████| 20/20 [00:00<00:00, 21.67it/s]s]
+Processing pages: 100%|██████████| 69/69 [00:04<00:00, 14.03it/s]
+OCR-rec Predict: 100%|██████████| 12/12 [00:00<00:00, 160.10it/s]
+INFO:     192.168.50.164:12293 - "GET /tasks/a9f8886b-60dd-4cdf-a469-f55ce966b395 HTTP/1.1" 200 OK
+INFO:     192.168.50.164:13741 - "GET /tasks/a9f8886b-60dd-4cdf-a469-f55ce966b395 HTTP/1.1" 200 OK
+INFO:     192.168.50.164:13742 - "GET /tasks/a9f8886b-60dd-4cdf-a469-f55ce966b395/result HTTP/1.1" 200 OK
+2026-06-05 01:58:16.724 | INFO     | mineru.cli.fast_api:cleanup_expired_tasks:1192 - Cleaned expired async task: 26e2f141-1f4f-4242-923f-5dba0d0a3cbd
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+[rank0]:[W605 02:32:46.572643932 ProcessGroupNCCL.cpp:1524] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1]
+2026-06-07 18:07:37.235254504 [W:onnxruntime:Default, cpuid_info.cc:95 LogEarlyWarning] Unknown CPU vendor. cpuinfo_vendor value: 16
+2026-06-07 18:09:14.201 | INFO     | mineru.cli.fast_api:create_app:233 - Request concurrency limited to 3
+2026-06-07 18:09:14.220 | WARNING  | mineru.cli.public_http_client_policy:warn_if_public_http_client_policy:58 - MinerU API is listening on 0.0.0.0. Disabling *-http-client backends and server_url by default because these inputs let callers choose remote HTTP inference endpoints; when the API is publicly reachable, that creates SSRF and internal network probing risk.
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+Start MinerU FastAPI Service: http://0.0.0.0:8000
+API documentation: http://0.0.0.0:8000/docs
+INFO:     192.168.50.248:51579 - "POST /tasks HTTP/1.1" 202 Accepted
+2026-06-07 18:21:41.386 | INFO     | mineru.utils.engine_utils:get_vlm_engine:34 - Using vllm-async-engine as the inference engine for VLM.
+INFO:     192.168.50.248:51590 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34540 - "GET /health HTTP/1.1" 200 OK
+INFO:     192.168.50.248:51627 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+2026-06-07 18:21:52.907 | INFO     | mineru.backend.vlm.utils:enable_custom_logits_processors:56 - compute_capability: 12.0 >= 8.0 and vllm version: 0.11.2 >= 0.10.1, enable custom_logits_processors
+INFO 06-07 18:21:53 [model.py:631] Resolved architecture: Qwen2VLForConditionalGeneration
+INFO 06-07 18:21:53 [model.py:1745] Using max model len 8192
+INFO 06-07 18:21:54 [scheduler.py:216] Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO:     192.168.50.248:51636 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+WARNING 06-07 18:21:56 [system_utils.py:103] We must use the `spawn` multiprocessing start method. Overriding VLLM_WORKER_MULTIPROC_METHOD to 'spawn'. See https://docs.vllm.ai/en/latest/usage/troubleshooting.html#python-multiprocessing for more information. Reasons: CUDA is initialized
+2026-06-07 18:21:57.548407508 [W:onnxruntime:Default, cpuid_info.cc:95 LogEarlyWarning] Unknown CPU vendor. cpuinfo_vendor value: 16
+INFO:     192.168.50.248:51647 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+INFO:     192.168.50.248:51654 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+INFO:     192.168.50.248:51663 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+INFO:     192.168.50.248:51676 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+(EngineCore_DP0 pid=530) INFO 06-07 18:22:09 [core.py:93] Initializing a V1 LLM engine (v0.11.2) with config: model='/root/.cache/modelscope/hub/models/OpenDataLab/MinerU2___5-Pro-2605-1___2B', speculative_config=None, tokenizer='/root/.cache/modelscope/hub/models/OpenDataLab/MinerU2___5-Pro-2605-1___2B', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=8192, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_fallback=False, disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None), seed=0, served_model_name=/root/.cache/modelscope/hub/models/OpenDataLab/MinerU2___5-Pro-2605-1___2B, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'level': None, 'mode': <CompilationMode.VLLM_COMPILE: 3>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['none'], 'splitting_ops': ['vllm::unified_attention', 'vllm::unified_attention_with_output', 'vllm::unified_mla_attention', 'vllm::unified_mla_attention_with_output', 'vllm::mamba_mixer2', 'vllm::mamba_mixer', 'vllm::short_conv', 'vllm::linear_attention', 'vllm::plamo2_mamba_mixer', 'vllm::gdn_attention_core', 'vllm::kda_attention', 'vllm::sparse_attn_indexer'], 'compile_mm_encoder': False, 'use_inductor': None, 'compile_sizes': [], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 1, 'cudagraph_capture_sizes': [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128, 136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {}, 'max_cudagraph_capture_size': 256, 'local_cache_dir': None}
+INFO:     192.168.50.248:51683 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+(EngineCore_DP0 pid=530) INFO 06-07 18:22:13 [parallel_state.py:1208] world_size=1 rank=0 local_rank=0 distributed_init_method=tcp://172.18.0.5:42077 backend=nccl
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+(EngineCore_DP0 pid=530) INFO 06-07 18:22:13 [parallel_state.py:1394] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, TP rank 0, EP rank 0
+INFO:     192.168.50.248:51694 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+(EngineCore_DP0 pid=530) The image processor of type `Qwen2VLImageProcessor` is now loaded as a fast processor by default, even if the model checkpoint was saved with a slow processor. This is a breaking change and may produce slightly different outputs. To continue using the slow processor, instantiate this class with `use_fast=False`. Note that this behavior will be extended to all models in a future release.
+INFO:     192.168.50.248:51695 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+(EngineCore_DP0 pid=530) INFO 06-07 18:22:19 [gpu_model_runner.py:3259] Starting to load model /root/.cache/modelscope/hub/models/OpenDataLab/MinerU2___5-Pro-2605-1___2B...
+INFO:     127.0.0.1:33910 - "GET /health HTTP/1.1" 200 OK
+INFO:     192.168.50.248:51698 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+(EngineCore_DP0 pid=530) INFO 06-07 18:22:21 [cuda.py:418] Valid backends: ['FLASH_ATTN', 'FLASHINFER', 'TRITON_ATTN', 'FLEX_ATTENTION']
+(EngineCore_DP0 pid=530) INFO 06-07 18:22:21 [cuda.py:427] Using FLASH_ATTN backend.
+Loading safetensors checkpoint shards:   0% Completed | 0/1 [00:00<?, ?it/s]
+INFO:     192.168.50.248:51703 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+INFO:     192.168.50.248:51706 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+INFO:     192.168.50.248:51709 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:08<00:00,  8.00s/it]
+Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:08<00:00,  8.00s/it]
+(EngineCore_DP0 pid=530) 
+(EngineCore_DP0 pid=530) INFO 06-07 18:22:29 [default_loader.py:314] Loading weights took 8.17 seconds
+(EngineCore_DP0 pid=530) INFO 06-07 18:22:29 [gpu_model_runner.py:3338] Model loading took 2.1601 GiB memory and 9.702304 seconds
+(EngineCore_DP0 pid=530) INFO 06-07 18:22:30 [gpu_model_runner.py:4088] Encoder cache will be initialized with a budget of 8100 tokens, and profiled with 1 video items of the maximum feature size.
+INFO:     192.168.50.248:51712 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+INFO:     192.168.50.248:51715 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+INFO:     192.168.50.248:51718 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+INFO:     192.168.50.248:51719 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+INFO:     192.168.50.248:51722 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+(EngineCore_DP0 pid=530) INFO 06-07 18:22:44 [backends.py:631] Using cache directory: /root/.cache/vllm/torch_compile_cache/2aca825677/rank_0_0/backbone for vLLM's torch.compile
+(EngineCore_DP0 pid=530) INFO 06-07 18:22:44 [backends.py:647] Dynamo bytecode transform time: 9.25 s
+INFO:     192.168.50.248:51739 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+INFO:     192.168.50.248:51744 - "POST /tasks HTTP/1.1" 202 Accepted
+2026-06-07 18:22:48.148 | WARNING  | mineru.cli.common:aio_do_parse:754 - No valid PDF or image files to process.
+INFO:     127.0.0.1:39858 - "GET /health HTTP/1.1" 200 OK
+INFO:     192.168.50.248:51751 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+(EngineCore_DP0 pid=530) INFO 06-07 18:22:50 [backends.py:210] Directly load the compiled graph(s) for dynamic shape from the cache, took 5.441 s
+INFO:     192.168.50.248:51758 - "GET /tasks/e8955eb4-a2e1-4ce6-a3ac-f2b13a335bde HTTP/1.1" 200 OK
+INFO:     192.168.50.248:51759 - "GET /tasks/e8955eb4-a2e1-4ce6-a3ac-f2b13a335bde/result HTTP/1.1" 200 OK
+(EngineCore_DP0 pid=530) INFO 06-07 18:22:51 [monitor.py:34] torch.compile takes 14.69 s in total
+INFO:     192.168.50.248:51776 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+(EngineCore_DP0 pid=530) INFO 06-07 18:22:53 [gpu_worker.py:359] Available KV cache memory: 3.95 GiB
+(EngineCore_DP0 pid=530) INFO 06-07 18:22:53 [kv_cache_utils.py:1229] GPU KV cache size: 345,104 tokens
+(EngineCore_DP0 pid=530) INFO 06-07 18:22:53 [kv_cache_utils.py:1234] Maximum concurrency for 8,192 tokens per request: 42.13x
+(EngineCore_DP0 pid=530) 2026-06-07 18:22:53,727 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(EngineCore_DP0 pid=530) 2026-06-07 18:22:53,745 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
+INFO:     192.168.50.248:51787 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+Capturing CUDA graphs (mixed prefill-decode, PIECEWISE): 100%|██████████| 35/35 [00:02<00:00, 16.47it/s]
+Capturing CUDA graphs (decode, FULL): 100%|██████████| 19/19 [00:01<00:00, 14.96it/s]
+(EngineCore_DP0 pid=530) INFO 06-07 18:22:57 [gpu_model_runner.py:4244] Graph capturing finished in 4 secs, took 0.09 GiB
+(EngineCore_DP0 pid=530) INFO 06-07 18:22:57 [core.py:250] init engine (profile, create kv cache, warmup model) took 27.97 seconds
+INFO:     192.168.50.248:51796 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+2026-06-07 18:22:59.261 | INFO     | mineru.backend.vlm.vlm_analyze:get_model:251 - get vllm-async-engine predictor cost: 69.73s
+2026-06-07 18:22:59.848 | INFO     | mineru.backend.hybrid.hybrid_analyze:aio_doc_analyze:886 - Hybrid processing-window run. page_count=22, window_size=64, total_windows=1
+2026-06-07 18:23:00.717930870 [W:onnxruntime:Default, cpuid_info.cc:95 LogEarlyWarning] Unknown CPU vendor. cpuinfo_vendor value: 16
+INFO:     192.168.50.248:51803 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+INFO:     192.168.50.248:51816 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1.1" 200 OK
+2026-06-07 18:23:07.561 | INFO     | mineru.backend.hybrid.hybrid_analyze:aio_doc_analyze:907 - Hybrid processing window 1/1: pages 1-22/22 (22 pages)
+WARNING 06-07 18:23:07 [async_llm.py:288] Processor has been moved under OpenAIServing and will be removed from AsyncLLM in v0.13.
+Two Step Extraction:   0%|          | 0/22 [00:00<?, ?it/s]The image processor of type `Qwen2VLImageProcessor` is now loaded as a fast processor by default, even if the model checkpoint was saved with a slow processor. This is a breaking change and may produce slightly different outputs. To continue using the slow processor, instantiate this class with `use_fast=False`. Note that this behavior will be extended to all models in a future release.
+INFO:     192.168.50.248:51827 - "GET /tasks/4822a33c-4e64-4d68-acad-508118f664db HTTP/1
