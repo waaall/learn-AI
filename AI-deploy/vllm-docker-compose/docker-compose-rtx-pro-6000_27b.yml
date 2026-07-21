@@ -1,0 +1,74 @@
+# RTX PRO 6000 上部署 Qwen3.6-27B-FP8，保留现有服务参数并移除 MoE 专用配置
+services:
+  vllm:
+    image: vllm/vllm-openai:v0.21.0-cu129
+    container_name: vllm-qwen36-27b
+    ports:
+      - "8123:8000"
+    restart: always
+    volumes:
+      # 宿主机模型目录 -> 容器内只读路径
+      - "${AI_MODEL_ROOT}/qwen36-27b-fp8:/models/Qwen3.6-27B-FP8:ro"
+      # 可选：挂载 Hugging Face 缓存，避免容器内重复下载 tokenizer 或依赖
+      # - "${AI_MODEL_ROOT}/_cache:/root/.cache/huggingface"
+    gpus: all
+    ipc: host
+    shm_size: "32gb"
+    environment:
+      - TZ=Asia/Shanghai
+      # RTX PRO 6000 是 SM_120，暂时关闭 DeepGEMM 以沿用当前稳定配置
+      - VLLM_USE_DEEP_GEMM=0
+
+    command:
+      - "/models/Qwen3.6-27B-FP8"
+      - "--served-model-name"
+      - "Qwen3.6-27B-FP8"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8000"
+      - "--override-generation-config"
+      - '{"temperature":0.2,"top_p":0.9}'
+
+      # 工具调用
+      - "--reasoning-parser"
+      - "qwen3"
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser"
+      - "qwen3_coder"
+
+      # 上下文与并发设置
+      - "--max-model-len"
+      - "81920"
+      - "--max-num-seqs"
+      - "4"
+      - "--max-num-batched-tokens"
+      - "32768"
+      - "--gpu-memory-utilization"
+      - "0.56"
+      - "--enable-prefix-caching"
+      - "--enable-chunked-prefill"
+
+      # KV cache 使用 FP8 时可节省显存；有兼容性问题，当前保持关闭
+      # - "--kv-cache-dtype"
+      # - "fp8"
+      # - "--calculate-kv-scales"
+
+    networks:
+      llm-net:
+        aliases: # http://vllm:8000 可以在容器网络内访问
+          - vllm
+
+    # 健康检查：vLLM 标准 /health 端点
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 900s  # 27B FP8 首次加载和编译预留 15 分钟
+
+# external 网络需要预先执行 docker network create llm-net，或与其他服务统一编排
+networks:
+  llm-net:
+    external: true
+    name: llm-net
