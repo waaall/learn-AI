@@ -1,0 +1,10 @@
+# 仅与主 Compose 合并使用；Token 通过只读文件挂载，不写入镜像或环境变量值。
+services:
+  qwen3-tts:
+    environment:
+      HF_TOKEN_FILE: /run/secrets/hf_token
+    secrets:
+      - hf_token
+secrets:
+  hf_token:
+    file: ${HF_TOKEN_HOST_FILE:?请在 .env 中设置 Token 文件路径 HF_TOKEN_HOST_FILE}

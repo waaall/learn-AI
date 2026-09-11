@@ -1,0 +1,13 @@
+# 仅与主 Compose 合并使用；外部目录只读，路径错误时不自动创建空目录。
+services:
+  qwen3-tts:
+    environment:
+      MODEL_LOCAL_PATH: /models/customvoice
+      HF_HUB_OFFLINE: "1"
+    volumes:
+      - type: bind
+        source: ${HOST_MODEL_DIR:?请在 .env 中设置完整模型目录 HOST_MODEL_DIR}
+        target: /models/customvoice
+        read_only: true
+        bind:
+          create_host_path: false

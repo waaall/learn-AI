@@ -19,6 +19,9 @@ class TTSService:
         self.lock = anyio.Lock()
 
     def load(self):
+        model_path = os.getenv("MODEL_LOAD_PATH", "").strip()
+        if not model_path:
+            raise RuntimeError("模型尚未准备，请通过 entrypoint.sh 启动服务")
         with startup_stage("导入 PyTorch 和 TTS 依赖"):
             import torch
             from faster_qwen3_tts import FasterQwen3TTS
@@ -34,14 +37,14 @@ class TTSService:
             logger.info("GPU=%s，空闲显存=%.2f GiB，总显存=%.2f GiB",
                         torch.cuda.get_device_name(device), free / 1024 ** 3, total / 1024 ** 3)
 
-        logger.info("准备加载模型=%s；HF_HOME=%s；离线模式=%s",
-                    self.settings.model_id, os.getenv("HF_HOME", "默认目录"),
+        logger.info("准备从本地加载模型=%s；HF_HOME=%s；离线模式=%s",
+                    model_path, os.getenv("HF_HOME", "默认目录"),
                     os.getenv("HF_HUB_OFFLINE", "0"))
-        logger.info("加载完成前 HTTP 端口尚未监听；首次启动可能需要下载模型及 tokenizer。")
-        # 下载与模型初始化由上游统一执行，不能将整个阶段误报为纯下载进度。
-        with startup_stage("模型文件获取及模型初始化（下载、权重加载、CUDA Graph 初始化）"):
+        logger.info("模型文件准备完成；加载完成前 HTTP 端口尚未监听。")
+        # 下载已经独立完成；GPU 初始化错误不触发重新下载或换源。
+        with startup_stage("离线加载权重及初始化 CUDA Graph"):
             self.model = FasterQwen3TTS.from_pretrained(
-                self.settings.model_id, device=self.settings.device,
+                model_path, device=self.settings.device,
                 dtype=getattr(torch, self.settings.dtype),
                 attn_implementation=self.settings.attention,
             )

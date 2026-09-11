@@ -24,6 +24,13 @@ services:
       HF_ENDPOINT: ${HF_ENDPOINT:-https://hf-mirror.com}
       HF_HOME: /root/.cache/huggingface
       HF_HUB_OFFLINE: ${HF_HUB_OFFLINE:-0}
+      HF_HUB_DISABLE_XET: ${HF_HUB_DISABLE_XET:-1}
+      HF_FALLBACK_TO_OFFICIAL: ${HF_FALLBACK_TO_OFFICIAL:-1}
+      HF_HUB_DOWNLOAD_TIMEOUT: ${HF_HUB_DOWNLOAD_TIMEOUT:-30}
+      MODEL_REVISION: ${MODEL_REVISION:-main}
+      MODEL_DOWNLOAD_ATTEMPTS: ${MODEL_DOWNLOAD_ATTEMPTS:-2}
+      MODEL_DOWNLOAD_TIMEOUT: ${MODEL_DOWNLOAD_TIMEOUT:-900}
+      MODEL_DOWNLOAD_WORKERS: ${MODEL_DOWNLOAD_WORKERS:-4}
       DEFAULT_VOICE: ${DEFAULT_VOICE:-Vivian}
       DEFAULT_LANGUAGE: ${DEFAULT_LANGUAGE:-Auto}
       MAX_INPUT_CHARS: ${MAX_INPUT_CHARS:-2000}
@@ -45,4 +52,5 @@ services:
             - driver: nvidia
               device_ids: ["${GPU_ID:-0}"]
               capabilities: [gpu]
-    restart: unless-stopped
+    # 启动失败最多自动重试三次，避免网络不可用时无限下载重启。
+    restart: "on-failure:3"

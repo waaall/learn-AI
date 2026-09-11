@@ -8,3 +8,7 @@ __pycache__/
 tests/
 *.wav
 *.pcm
+
+# 私密凭据和外部模型不得提交或发送到镜像构建上下文。
+secrets/
+external-models/
