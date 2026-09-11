@@ -1,5 +1,11 @@
 services:
   vllm:
+    # 自动轮转日志，单文件 20 MB，最多保留 10 个。
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "10"
     image: vllm/vllm-openai:v0.12.0
     container_name: vllm-qwen3-4090_2
     ports:

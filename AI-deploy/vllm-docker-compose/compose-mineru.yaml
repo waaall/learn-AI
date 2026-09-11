@@ -4,6 +4,12 @@ services:
   # 调整参数 如 gpu-memory-utilization 根据GPU显存调整 使之占用8G左右; 如 device_ids
   # docker compose -f compose-mineru.yaml --profile api up -d
   mineru-openai-server:
+    # 自动轮转日志，单文件 20 MB，最多保留 10 个。
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "10"
     image: mineru:latest
     container_name: mineru-openai-server
     restart: always
@@ -32,6 +38,12 @@ services:
               capabilities: [gpu]
 
   mineru-api:
+    # 自动轮转日志，单文件 20 MB，最多保留 10 个。
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "10"
     image: mineru:latest
     container_name: mineru-api
     restart: always
@@ -67,6 +79,12 @@ services:
           - mineru
 
   mineru-gradio:
+    # 自动轮转日志，单文件 20 MB，最多保留 10 个。
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "10"
     image: mineru:latest
     container_name: mineru-gradio
     restart: always

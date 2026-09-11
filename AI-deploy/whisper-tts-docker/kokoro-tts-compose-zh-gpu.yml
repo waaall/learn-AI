@@ -2,6 +2,12 @@ name: kokoro-fastapi-zh-gpu
 
 services:
   kokoro-zh-gpu:
+    # 自动轮转日志，单文件 20 MB，最多保留 10 个。
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "10"
     image: kokoro-fastapi-zh-gpu:local # 根据 dockerfile 自己构建的
     # 正常下载的 ghcr.io/hsiang-han/kokoro-fastapi-zh-gpu:latest
     # 国内源 ghcr.nju.edu.cn/hsiang-han/kokoro-fastapi-zh-gpu:latest
