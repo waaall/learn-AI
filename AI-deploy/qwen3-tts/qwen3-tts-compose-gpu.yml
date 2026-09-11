@@ -28,7 +28,15 @@ services:
       DEFAULT_LANGUAGE: ${DEFAULT_LANGUAGE:-Auto}
       MAX_INPUT_CHARS: ${MAX_INPUT_CHARS:-2000}
       STREAM_CHUNK_SIZE: ${STREAM_CHUNK_SIZE:-8}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      STARTUP_LOG_INTERVAL: ${STARTUP_LOG_INTERVAL:-30}
       PORT: "8080"
+    # 自动轮转日志，单文件 20 MB，最多保留 10 个。
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "10"
     shm_size: "4gb"
     deploy:
       resources:

@@ -78,3 +78,11 @@ PCM 为单声道、小端有符号 16 位，采样率见 `/health`。流式 WAV 
 python -m pytest tests -q
 bash -n entrypoint.sh
 ```
+
+## 查看启动进度
+
+`docker compose -f qwen3-tts-compose-gpu.yml logs -f --tail=100` 可看到依赖导入、CUDA 检查、模型初始化和就绪日志；失败时输出异常堆栈。默认每 30 秒输出当前阶段耗时、Hub 缓存总大小和 `.incomplete` 文件数量，可通过 `STARTUP_LOG_INTERVAL` 调整。
+
+缓存统计包含已有模型，临时文件也可能来自上次中断，因此不是当前模型的下载百分比。状态日志持续输出也不保证下载或加载正在推进；需结合缓存增长、上游日志及 GPU 状态判断。模型初始化期间 HTTP 尚未开始监听，出现 Uvicorn 监听日志后再访问 `/health` 或 `/docs`。
+
+此变更需要重新构建镜像并重建容器，单纯 `docker restart` 不会更新代码。

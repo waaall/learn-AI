@@ -7,9 +7,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
+from startup_logging import configure_logging
 from settings import Settings
 from tts_service import TTSService
 
+configure_logging()
 settings = Settings.from_env()
 service = None
 

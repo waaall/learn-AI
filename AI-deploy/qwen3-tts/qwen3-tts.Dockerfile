@@ -23,7 +23,7 @@ RUN python scripts/preserve_torch.py /tmp/torch-constraints.txt && \
     python -m pip check && \
     python -c "from faster_qwen3_tts import FasterQwen3TTS"
 
-COPY main.py settings.py audio_utils.py tts_service.py entrypoint.sh ./
+COPY main.py settings.py audio_utils.py tts_service.py startup_logging.py entrypoint.sh ./
 RUN chmod +x entrypoint.sh
 
 ENV MODEL_ID=Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \

@@ -1,10 +1,15 @@
 """封装预设音色推理，串行使用模型，避免阻塞服务事件循环。"""
 from contextlib import closing
 from functools import partial
+import logging
+import os
 
 import anyio
 
 from audio_utils import to_pcm16, to_wav, wav_header
+from startup_logging import startup_stage
+
+logger = logging.getLogger("qwen3_tts.service")
 
 
 class TTSService:
@@ -14,16 +19,37 @@ class TTSService:
         self.lock = anyio.Lock()
 
     def load(self):
-        import torch
-        from faster_qwen3_tts import FasterQwen3TTS
+        with startup_stage("导入 PyTorch 和 TTS 依赖"):
+            import torch
+            from faster_qwen3_tts import FasterQwen3TTS
 
-        self.model = FasterQwen3TTS.from_pretrained(
-            self.settings.model_id, device=self.settings.device,
-            dtype=getattr(torch, self.settings.dtype),
-            attn_implementation=self.settings.attention,
-        )
-        if getattr(self.model.model.model, "tts_model_type", None) != "custom_voice":
-            raise ValueError("此服务仅部署 CustomVoice 预设音色模型")
+        with startup_stage("检查 CUDA 设备"):
+            logger.info("PyTorch=%s，CUDA runtime=%s，device=%s，dtype=%s，attention=%s",
+                        torch.__version__, torch.version.cuda, self.settings.device,
+                        self.settings.dtype, self.settings.attention)
+            if not self.settings.device.startswith("cuda") or not torch.cuda.is_available():
+                raise RuntimeError("此服务需要可用的 CUDA GPU，请检查驱动和容器 GPU 配置")
+            device = torch.device(self.settings.device)
+            free, total = torch.cuda.mem_get_info(device)
+            logger.info("GPU=%s，空闲显存=%.2f GiB，总显存=%.2f GiB",
+                        torch.cuda.get_device_name(device), free / 1024 ** 3, total / 1024 ** 3)
+
+        logger.info("准备加载模型=%s；HF_HOME=%s；离线模式=%s",
+                    self.settings.model_id, os.getenv("HF_HOME", "默认目录"),
+                    os.getenv("HF_HUB_OFFLINE", "0"))
+        logger.info("加载完成前 HTTP 端口尚未监听；首次启动可能需要下载模型及 tokenizer。")
+        # 下载与模型初始化由上游统一执行，不能将整个阶段误报为纯下载进度。
+        with startup_stage("模型文件获取及模型初始化（下载、权重加载、CUDA Graph 初始化）"):
+            self.model = FasterQwen3TTS.from_pretrained(
+                self.settings.model_id, device=self.settings.device,
+                dtype=getattr(torch, self.settings.dtype),
+                attn_implementation=self.settings.attention,
+            )
+            if getattr(self.model.model.model, "tts_model_type", None) != "custom_voice":
+                raise ValueError("此服务仅部署 CustomVoice 预设音色模型")
+        logger.info("模型已加载：采样率=%s Hz，音色=%s", self.sample_rate, self.supported("speakers"))
+        logger.info("应用初始化完成，即将由 Uvicorn 开始监听容器端口 %s；首次合成仍可能触发预热。",
+                    os.getenv("PORT", "8080"))
 
     @property
     def sample_rate(self):
