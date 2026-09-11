@@ -1,0 +1,10 @@
+# 本地缓存、测试音频与机器专属设置不提交。
+.env
+models/
+__pycache__/
+.pytest_cache/
+*.wav
+*.pcm
+# 上层笔记仓库默认忽略 tests，此部署目录保留回归测试。
+!tests/
+!tests/*.py

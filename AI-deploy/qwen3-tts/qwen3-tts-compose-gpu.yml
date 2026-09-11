@@ -1,0 +1,40 @@
+# 在 GPU 服务器本地构建，默认不拉取远端成品镜像。
+name: qwen3-tts-api
+services:
+  qwen3-tts:
+    image: local/qwen3-tts-api:custom-voice
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: qwen3-tts.Dockerfile
+      args:
+        BASE_IMAGE: ${BASE_IMAGE:-pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime}
+        APT_MIRROR: ${APT_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/ubuntu}
+        APT_SECURITY_MIRROR: ${APT_SECURITY_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/ubuntu}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
+    ports:
+      - "${BIND_ADDRESS:-0.0.0.0}:${HOST_PORT:-18765}:8080"
+    volumes:
+      - "${MODEL_CACHE_DIR:-./models}:/root/.cache/huggingface"
+    environment:
+      MODEL_ID: ${MODEL_ID:-Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice}
+      DTYPE: ${DTYPE:-bfloat16}
+      ATTN_IMPLEMENTATION: ${ATTN_IMPLEMENTATION:-sdpa}
+      DEVICE: cuda:0
+      HF_ENDPOINT: ${HF_ENDPOINT:-https://hf-mirror.com}
+      HF_HOME: /root/.cache/huggingface
+      HF_HUB_OFFLINE: ${HF_HUB_OFFLINE:-0}
+      DEFAULT_VOICE: ${DEFAULT_VOICE:-Vivian}
+      DEFAULT_LANGUAGE: ${DEFAULT_LANGUAGE:-Auto}
+      MAX_INPUT_CHARS: ${MAX_INPUT_CHARS:-2000}
+      STREAM_CHUNK_SIZE: ${STREAM_CHUNK_SIZE:-8}
+      PORT: "8080"
+    shm_size: "4gb"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${GPU_ID:-0}"]
+              capabilities: [gpu]
+    restart: unless-stopped

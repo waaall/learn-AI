@@ -1,0 +1,8 @@
+# 固定直接依赖；间接依赖仍由 pip 解析，GPU 环境须实际验证。
+faster-qwen3-tts==0.4.0
+fastapi==0.115.12
+uvicorn==0.34.2
+pydantic==2.11.4
+numpy==2.2.5
+soundfile==0.13.1
+anyio==4.9.0
