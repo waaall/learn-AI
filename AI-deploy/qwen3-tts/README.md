@@ -43,11 +43,13 @@ docker compose -f qwen3-tts-compose-gpu.yml logs -f
 
 ## 依赖与验证边界
 
-直接依赖固定在 `requirements.txt`，其中 `faster-qwen3-tts==0.4.0` 的 PyPI 元数据声明 `torch>=2.5.1`，并依赖 `qwen-tts-hf` 和 Transformers 5.x。基础镜像中的 torch/torchvision/torchaudio/triton（已安装部分）会生成版本约束，冲突则构建失败，不自动换掉原有 PyTorch。构建末尾执行 `pip check` 和导入检查。
+直接依赖固定在 `requirements.txt`，当前使用 `faster-qwen3-tts==0.4.0`，并额外锁定 `transformers==5.15.1`。该 faster 版本依赖 `qwen-tts-hf>=0.1.1.post1,<0.2`、`transformers>=5.15.1,<6`、`huggingface-hub>=1.5.0,<2.0` 和 `torch>=2.5.1`；其他间接依赖仍由 pip 在上游约束范围内解析。基础镜像中的 torch/torchvision/torchaudio/triton（已安装部分）会生成版本约束，冲突则构建失败，不自动换掉原有 PyTorch。构建末尾执行 `pip check` 和导入检查。
+
+本次锁定用于验证原环境 `transformers==5.17.0` 下的 `MimiConfig.rope_theta` 初始化错误是否与 Transformers 版本有关，尚不能认定 `5.15.1` 已修复问题。应重新构建镜像，不在旧容器中覆盖安装，也不混装 `qwen-tts` 与 `qwen-tts-hf`；保留挂载的模型缓存。不修改依赖库源码，不增加 pip 自动换源机制。仍须在目标 GPU 上验证完整模型加载、普通合成和流式合成，成功后再记录完整依赖版本；构建检查通过不代表推理已验证。
 
 **这不是完整的传递依赖锁文件，也不是已经通过 4090 实机测试的组合。** 初次构建和推理成功后，可保存 `pip freeze` 作为该服务器的依赖快照。不要遇到冲突就删掉 PyTorch 约束；应先检查冲突包。如果运行时需要编译 CUDA 扩展，再考虑带开发工具链的基础镜像。
 
-参考：[固定版本元数据](https://pypi.org/pypi/faster-qwen3-tts/0.4.0/json)、[上游接口](https://github.com/andimarafioti/faster-qwen3-tts/blob/main/faster_qwen3_tts/model.py)、[清华 apt](https://mirrors.tuna.tsinghua.edu.cn/help/ubuntu/)、[清华 pip](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)、[HF-Mirror](https://hf-mirror.com/)。
+参考：[固定版本依赖声明](https://github.com/andimarafioti/faster-qwen3-tts/blob/v0.4.0/pyproject.toml)、[上游接口](https://github.com/andimarafioti/faster-qwen3-tts/blob/v0.4.0/faster_qwen3_tts/model.py)、[清华 apt](https://mirrors.tuna.tsinghua.edu.cn/help/ubuntu/)、[清华 pip](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)、[HF-Mirror](https://hf-mirror.com/)。
 
 ## 调用
 
