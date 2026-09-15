@@ -112,17 +112,58 @@ bash -n entrypoint.sh
 
 401 并不一定是缺少个人 Token。需要时，在**服务器**创建只包含 Token 文本的文件（建议最小读取权限的 Token，文件权限 `600`），不要把 Token 发到聊天、写进 Dockerfile 或提交到 Git。
 
-在 `.env` 中填写文件路径，不填写 Token 值：
+#### Unix / Linux / macOS / WSL / Git Bash
+
+以下命令在**实际运行 Docker Engine 的主机**上执行，并且当前目录应为本部署目录：
+
+```bash
+cd /opt/qwen3-tts                 # 按实际部署目录修改
+test -f .env || cp .env.example .env
+mkdir -p secrets
+vim secrets/hf-token
+```
+
+在 Vim 中按 `i` 开始输入，粘贴一行 `hf_...` Token；按 `Esc`，输入 `:wq`，再按回车保存。Token 文件允许末尾有一个换行，但不要有空格、引号或其他内容：
+
+```bash
+chmod 600 secrets/hf-token
+```
+
+如果本机没有 Vim，也可以用 `nano secrets/hf-token`。不要使用 `cat`、`echo` 或调试命令把 Token 打到终端或日志中。
+
+#### Windows PowerShell
+
+如果 Docker Desktop 运行在 Windows 本机，先把 Docker Desktop 切换为 **Linux containers**，并启用 WSL2 后端；GPU 容器需要 WSL2。若 Windows 只是远程操作 Linux 4090 服务器，应改用上面的 Unix 步骤，Token 文件必须位于 Linux 服务器，而不是 Windows 客户端。
+
+```powershell
+Set-Location C:\AI\qwen3-tts       # 按实际部署目录修改
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+New-Item -ItemType Directory -Force .\secrets | Out-Null
+notepad .\secrets\hf-token
+```
+
+在记事本中粘贴一行 `hf_...` Token 后保存。文件名必须是 `hf-token`，不是 `hf-token.txt`；编码选择 `UTF-8`（不要保存成 UTF-16），内容不要包含空格、引号或其他行。也可以在 WSL / Git Bash 中直接使用上面的 `vim secrets/hf-token`。
+
+Windows 下 `.env` 的宿主机路径建议使用相对路径，避免反斜杠和盘符解析问题：
 
 ```dotenv
-HF_TOKEN_HOST_FILE=/absolute/path/to/hf-token
+HF_TOKEN_HOST_FILE=./secrets/hf-token
+HF_ENDPOINT=https://hf-mirror.com
+HF_FALLBACK_TO_OFFICIAL=1
 ```
+
+若必须使用绝对路径，使用正斜杠，例如 `C:/AI/qwen3-tts/secrets/hf-token`，不要写成容器内的 `/run/secrets/hf_token`。后者是 Compose 在容器内自动挂载后的路径，不能作为宿主机文件路径。
 
 合并凭据覆盖文件启动：
 
 ```bash
-docker compose -f qwen3-tts-compose-gpu.yml   -f qwen3-tts-token.override.yml up -d --no-build --pull never
+docker compose --env-file .env -f qwen3-tts-compose-gpu.yml -f qwen3-tts-token.override.yml config --quiet
+docker compose --env-file .env -f qwen3-tts-compose-gpu.yml build --pull=false
+docker compose --env-file .env -f qwen3-tts-compose-gpu.yml -f qwen3-tts-token.override.yml up -d --no-build --pull never --force-recreate
+docker compose --env-file .env -f qwen3-tts-compose-gpu.yml -f qwen3-tts-token.override.yml logs -f --tail=100 qwen3-tts
 ```
+
+`config --quiet` 只检查合并后的配置，不会显示 Token 内容。若已有最新镜像，第二条 `build` 可跳过；新增或更新 `prepare_model.py`、下载回退逻辑后必须重新构建。只新增 Token 文件时仍要 `--force-recreate`，因为 Secret 挂载属于容器配置。
 
 Token 通过 Compose secret 文件只读挂载，仅在下载端点**精确等于 `https://huggingface.co`** 时显式传给官方 Hub 客户端；镜像请求使用 `token=False`。启动脚本会忽略普通 `HF_TOKEN` / `HUGGING_FACE_HUB_TOKEN` 环境变量，避免自动把凭据发给镜像。应用不会把 Token 保存到模型缓存。
 
@@ -132,15 +173,25 @@ Token 通过 Compose secret 文件只读挂载，仅在下载端点**精确等�
 
 在 `.env` 中指定：
 
+Unix / Linux / WSL：
+
 ```dotenv
 HOST_MODEL_DIR=/absolute/path/to/Qwen3-TTS-12Hz-1.7B-CustomVoice
+```
+
+Windows Docker Desktop：
+
+```dotenv
+HOST_MODEL_DIR=C:/AI/models/Qwen3-TTS-12Hz-1.7B-CustomVoice
 ```
 
 合并本地模型覆盖文件启动：
 
 ```bash
-docker compose -f qwen3-tts-compose-gpu.yml   -f qwen3-tts-local.override.yml up -d --no-build --pull never
+docker compose --env-file .env -f qwen3-tts-compose-gpu.yml -f qwen3-tts-local.override.yml up -d --no-build --pull never --force-recreate
 ```
+
+Windows PowerShell 也执行同一条命令；如果当前目录不是部署目录，请先 `Set-Location C:\AI\qwen3-tts`。本地模型模式不需要 Token，且 `HF_HUB_OFFLINE=1` 会阻止联网；不要同时误用 Token 覆盖文件来排查下载问题。
 
 目录挂载到容器 `/models/customvoice`，只读，路径不存在时不自动创建空目录。目录必须包含模型配置、生成配置、预处理配置、文本 tokenizer、主模型权重，以及完整的 `speech_tokenizer/` 子目录；分片权重必须包含索引列出的所有分片。不支持只挂一个 `.safetensors` 文件。`MODEL_ID` 仍作为 API 的模型名称，不暴露本地路径。
 
