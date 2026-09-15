@@ -9,9 +9,11 @@ services:
       dockerfile: qwen3-tts.Dockerfile
       args:
         BASE_IMAGE: ${BASE_IMAGE:-pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime}
-        APT_MIRROR: ${APT_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/ubuntu}
-        APT_SECURITY_MIRROR: ${APT_SECURITY_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/ubuntu}
-        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
+        APT_MIRROR: ${APT_MIRROR:-https://mirrors.ustc.edu.cn/ubuntu}
+        APT_SECURITY_MIRROR: ${APT_SECURITY_MIRROR:-https://mirrors.ustc.edu.cn/ubuntu}
+        APT_FALLBACK_MIRRORS: ${APT_FALLBACK_MIRRORS-https://mirrors.tuna.tsinghua.edu.cn/ubuntu|https://mirrors.tuna.tsinghua.edu.cn/ubuntu https://archive.ubuntu.com/ubuntu|https://security.ubuntu.com/ubuntu}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.ustc.edu.cn/pypi/simple}
+        PIP_FALLBACK_INDEX_URLS: ${PIP_FALLBACK_INDEX_URLS-https://pypi.tuna.tsinghua.edu.cn/simple https://pypi.org/simple}
     ports:
       - "${BIND_ADDRESS:-0.0.0.0}:${HOST_PORT:-18765}:8080"
     volumes:

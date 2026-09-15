@@ -31,10 +31,12 @@ docker compose -f qwen3-tts-compose-gpu.yml logs -f
 ## 镜像与下载源
 
 - 默认复用 `pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime`，使用 BF16 + SDPA，不安装 FlashAttention。
-- `BASE_IMAGE`、`APT_MIRROR`、`APT_SECURITY_MIRROR`、`PIP_INDEX_URL` 属于构建参数，更改后需重新构建。
-- apt 默认连安全更新也使用清华源，避免国内网络卡在官方安全源。镜像可能有同步延迟；可将 `APT_SECURITY_MIRROR` 改为 `https://security.ubuntu.com/ubuntu`。
-- 换 apt 源保留基础镜像的发行版及签名配置，不按宿主机发行版重写。
-- pip 使用单一 HTTPS 国内源，不关闭证书校验。未配置多个索引作为自动回退。
+- `BASE_IMAGE`、`APT_MIRROR`、`APT_SECURITY_MIRROR`、`APT_FALLBACK_MIRRORS`、`PIP_INDEX_URL`、`PIP_FALLBACK_INDEX_URLS` 属于构建参数，更改后需重新构建。
+- apt 默认连安全更新也使用中科大源，避免国内网络卡在官方安全源。镜像可能有同步延迟；可将 `APT_SECURITY_MIRROR` 改为 `https://security.ubuntu.com/ubuntu`。
+- apt 按中科大 → 清华 → Ubuntu 官方顺序尝试；每轮从原始源配置重新替换地址、清理旧索引，再执行更新和安装，全部失败则终止构建。保留基础镜像的发行版及签名配置，不按宿主机发行版重写。`APT_FALLBACK_MIRRORS` 使用空格分隔备用项，每项为 `普通仓库|安全仓库`，显式留空可关闭回退。
+- 已有 `.env` 会覆盖这些默认值：升级时同步调整 `APT_MIRROR`、`APT_SECURITY_MIRROR`、`PIP_INDEX_URL` 和备用源列表，仅更新 `.env.example` 不会改变服务器上的 `.env`。
+- pip 在 Dockerfile 中按中科大 → 清华 → 官方 PyPI 顺序安装，成功即停止，全部失败则构建失败；不新增安装脚本，不使用 `extra-index-url`，不关闭证书校验。任何安装失败（包括依赖冲突）都会尝试下一源，不表示失败一定由镜像站引起；每次均使用相同的 requirements 和 PyTorch 约束。`PIP_FALLBACK_INDEX_URLS` 为按空格分隔的备用源列表，显式留空可关闭回退，源 URL 不应携带凭据。
+- [中科大 PyPI 镜像](https://mirrors.ustc.edu.cn/help/pypi.html)未缓存的包可能重定向到清华，因此它并非完全独立的备用源。下载 403 与模型初始化错误应分开排查。
 - `HF_ENDPOINT` 是运行时模型下载端点，默认 HF-Mirror；可切回 `https://huggingface.co`。第三方镜像不保证所有文件均可访问，不要向其提供私有模型凭据。
 - 模型默认缓存在服务器部署目录的 `models` 中。可将 `.env` 中 `MODEL_CACHE_DIR` 改为宿主机绝对路径。
 - 模型不会打包进镜像。首次启动先准备模型文件再启动 API，健康检查宽限期为 30 分钟；健康状态不会让 Docker 自动重启容器。下载耗时可能超过宽限期，届时显示 unhealthy 不等于进程已退出。
@@ -45,7 +47,7 @@ docker compose -f qwen3-tts-compose-gpu.yml logs -f
 
 直接依赖固定在 `requirements.txt`，当前使用 `faster-qwen3-tts==0.4.0`，并额外锁定 `transformers==5.15.1`。该 faster 版本依赖 `qwen-tts-hf>=0.1.1.post1,<0.2`、`transformers>=5.15.1,<6`、`huggingface-hub>=1.5.0,<2.0` 和 `torch>=2.5.1`；其他间接依赖仍由 pip 在上游约束范围内解析。基础镜像中的 torch/torchvision/torchaudio/triton（已安装部分）会生成版本约束，冲突则构建失败，不自动换掉原有 PyTorch。构建末尾执行 `pip check` 和导入检查。
 
-本次锁定用于验证原环境 `transformers==5.17.0` 下的 `MimiConfig.rope_theta` 初始化错误是否与 Transformers 版本有关，尚不能认定 `5.15.1` 已修复问题。应重新构建镜像，不在旧容器中覆盖安装，也不混装 `qwen-tts` 与 `qwen-tts-hf`；保留挂载的模型缓存。不修改依赖库源码，不增加 pip 自动换源机制。仍须在目标 GPU 上验证完整模型加载、普通合成和流式合成，成功后再记录完整依赖版本；构建检查通过不代表推理已验证。
+本次锁定用于验证原环境 `transformers==5.17.0` 下的 `MimiConfig.rope_theta` 初始化错误是否与 Transformers 版本有关，尚不能认定 `5.15.1` 已修复问题。应重新构建镜像，不在旧容器中覆盖安装，也不混装 `qwen-tts` 与 `qwen-tts-hf`；保留挂载的模型缓存。不修改依赖库源码；pip 换源只处理构建时的安装尝试，不保证解决运行时兼容问题。仍须在目标 GPU 上验证完整模型加载、普通合成和流式合成，成功后再记录完整依赖版本；构建检查通过不代表推理已验证。
 
 **这不是完整的传递依赖锁文件，也不是已经通过 4090 实机测试的组合。** 初次构建和推理成功后，可保存 `pip freeze` 作为该服务器的依赖快照。不要遇到冲突就删掉 PyTorch 约束；应先检查冲突包。如果运行时需要编译 CUDA 扩展，再考虑带开发工具链的基础镜像。
 
